@@ -74,6 +74,7 @@ fun DownloadScreen(viewModel: AppViewModel) {
             ) {
                 val dl = downloadState
                 when (dl) {
+                    GrimoireDatabase.DlState.Idle -> IdleStatus()
                     GrimoireDatabase.DlState.Connecting -> DownloadStatus(
                         title = "Connecting to GitHub…",
                         progress = null,
@@ -161,6 +162,28 @@ fun DownloadScreen(viewModel: AppViewModel) {
             modifier = Modifier.widthIn(max = 520.dp),
         )
     }
+}
+
+@Composable
+private fun IdleStatus() {
+    Icon(
+        painter = painterResource(R.drawable.lucide_ic_download),
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.height(48.dp),
+    )
+    Spacer(Modifier.height(12.dp))
+    Text(
+        text = "Ready to download",
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.onSurface,
+    )
+    Text(
+        text = "One-time download · ~56 MB · unpacked and kept offline",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+    )
 }
 
 @Composable

@@ -53,7 +53,7 @@ object GrimoireDatabase {
         }
     }
 
-    /** Parse the SHA256SUMS manifest: "<sha256>  <filename>" lines. */
+    /** Parse the SHA256SUMS manifest: "<sha256>  <filename>" lines into filename → sha256. */
     internal fun parseSums(text: String): Map<String, String> =
         text.lineSequence()
             .map { it.trim() }
@@ -61,11 +61,12 @@ object GrimoireDatabase {
             .mapNotNull { line ->
                 val idx = line.indexOfFirst { it.isWhitespace() }
                 if (idx <= 0) null
-                else line.substring(0, idx).lowercase() to line.substring(idx + 1).trim()
+                else line.substring(idx + 1).trim() to line.substring(0, idx).lowercase()
             }
             .toMap()
 
     sealed interface DlState {
+        data object Idle : DlState
         data object Connecting : DlState
         data class Downloading(val downloadedBytes: Long, val totalBytes: Long) : DlState
         data object VerifyingCompressed : DlState

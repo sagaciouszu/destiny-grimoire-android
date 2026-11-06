@@ -11,7 +11,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -48,7 +47,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _dbState = MutableStateFlow(DatabaseState.CHECKING)
     val dbState: StateFlow<DatabaseState> = _dbState.asStateFlow()
 
-    private val _downloadState = MutableStateFlow<GrimoireDatabase.DlState>(GrimoireDatabase.DlState.Connecting)
+    private val _downloadState = MutableStateFlow<GrimoireDatabase.DlState>(GrimoireDatabase.DlState.Idle)
     val downloadState: StateFlow<GrimoireDatabase.DlState> = _downloadState.asStateFlow()
 
     private val _query = MutableStateFlow("")
@@ -111,7 +110,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) { GrimoireDatabase.delete(app) }
             _dbState.value = DatabaseState.NEEDS_DOWNLOAD
-            _downloadState.value = GrimoireDatabase.DlState.Connecting
+            _downloadState.value = GrimoireDatabase.DlState.Idle
         }
     }
 }
