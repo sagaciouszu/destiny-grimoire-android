@@ -11,8 +11,8 @@ android {
         applicationId = "com.grimoire.android"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
 
         ndk {
             // Pixel 8 is arm64-v8a; add x86_64 for emulator use
@@ -63,4 +63,6 @@ dependencies {
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.lifecycle.runtime.compose)
     implementation(libs.lucide.icons)
+    implementation(libs.navigation.compose)
+    implementation(libs.datastore.preferences)
 }

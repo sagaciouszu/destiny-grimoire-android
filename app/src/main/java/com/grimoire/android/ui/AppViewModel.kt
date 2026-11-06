@@ -7,6 +7,11 @@ import com.grimoire.android.data.GrimoireDatabase
 import com.grimoire.android.data.GrimoireSearchRepository
 import com.grimoire.android.data.SearchResponse
 import com.grimoire.android.data.SourceKind
+import com.grimoire.android.data.AppSettings
+import com.grimoire.android.data.LineSpacing
+import com.grimoire.android.data.ReadingSize
+import com.grimoire.android.data.SettingsStore
+import com.grimoire.android.data.ThemeMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -58,6 +63,23 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val search: StateFlow<SearchUiState> = combine(_query, _source, _response, _loading) { q, s, r, loading ->
         SearchUiState(q, s, r, loading)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SearchUiState())
+
+    /** Persisted app settings (theme, reading preferences). */
+    val settings: StateFlow<AppSettings> =
+        SettingsStore.settingsFlow(app)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings())
+
+    fun onThemeModeChange(mode: ThemeMode) =
+        viewModelScope.launch { SettingsStore.setThemeMode(app, mode) }
+
+    fun onDynamicColorChange(enabled: Boolean) =
+        viewModelScope.launch { SettingsStore.setDynamicColor(app, enabled) }
+
+    fun onReadingSizeChange(size: ReadingSize) =
+        viewModelScope.launch { SettingsStore.setReadingSize(app, size) }
+
+    fun onLineSpacingChange(spacing: LineSpacing) =
+        viewModelScope.launch { SettingsStore.setLineSpacing(app, spacing) }
 
     private var downloadJob: Job? = null
 

@@ -28,6 +28,13 @@ object GrimoireNative {
      */
     external fun nativeSearch(query: String, source: String, limit: Int, offset: Int): String
 
+    /**
+     * JSON: {"found":true,"kind":"transcript_line","title":"...","subtitle":"...","blocks":[
+     *   {"label":"Speaker","heading":"","text":"line","stage":false}, ...]}
+     * Fetches the full underlying article for a search result row.
+     */
+    external fun nativeArticle(source: String, sourceSlug: String): String
+
     /** Closes the handle; subsequent searches will fail until nativeOpenDb is called again. */
     external fun nativeClose()
 }

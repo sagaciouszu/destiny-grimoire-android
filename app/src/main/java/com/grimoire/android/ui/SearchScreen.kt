@@ -3,6 +3,7 @@ package com.grimoire.android.ui
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,7 +19,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -36,6 +39,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -49,7 +53,11 @@ import com.grimoire.android.data.SourceKind
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SearchScreen(viewModel: AppViewModel) {
+fun SearchScreen(
+    viewModel: AppViewModel,
+    onOpenArticle: (source: String, slug: String) -> Unit,
+    onOpenSettings: () -> Unit,
+) {
     val state by viewModel.search.collectAsState()
 
     Column(Modifier.fillMaxSize()) {
@@ -71,10 +79,10 @@ fun SearchScreen(viewModel: AppViewModel) {
                 }
             },
             actions = {
-                IconButton(onClick = { viewModel.deleteDatabaseAndRedownload() }) {
+                IconButton(onClick = onOpenSettings) {
                     Icon(
-                        painter = painterResource(R.drawable.lucide_ic_refresh_cw),
-                        contentDescription = "Re-download the archive",
+                        painter = painterResource(R.drawable.lucide_ic_settings),
+                        contentDescription = "Settings",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -141,7 +149,7 @@ fun SearchScreen(viewModel: AppViewModel) {
         when {
             state.query.isBlank() -> PromptIdleState()
             state.response.results.isEmpty() && !state.loading -> EmptyResultsState(state.query)
-            else -> ResultsList(results = state.response.results)
+            else -> ResultsList(results = state.response.results, onOpenArticle = onOpenArticle)
         }
     }
 }
@@ -160,26 +168,36 @@ private fun LazyRowSourceFilter(
                 selected = kind == selected,
                 onClick = { onSelect(kind) },
                 label = { Text(kind.label) },
+                leadingIcon = {
+                    Icon(
+                        painter = painterResource(iconForSource(kind)),
+                        contentDescription = null,
+                        modifier = Modifier.size(FilterChipDefaults.IconSize),
+                    )
+                },
             )
         }
     }
 }
 
 @Composable
-private fun ResultsList(results: List<SearchResult>) {
+private fun ResultsList(
+    results: List<SearchResult>,
+    onOpenArticle: (String, String) -> Unit,
+) {
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
         items(results, key = { "${it.source}:${it.sourceSlug}:${it.title}:${it.snippet.hashCode()}" }) { result ->
-            ResultCard(result)
+            ResultCard(result, onOpenArticle = { onOpenArticle(result.source, result.sourceSlug) })
         }
     }
 }
 
 @Composable
-private fun ResultCard(result: SearchResult) {
+private fun ResultCard(result: SearchResult, onOpenArticle: () -> Unit) {
     val context = LocalContext.current
     val gold = MaterialTheme.colorScheme.primary
     val rawSnippet = result.snippet
@@ -188,7 +206,9 @@ private fun ResultCard(result: SearchResult) {
     }
 
     ElevatedCard(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onOpenArticle, role = Role.Button),
         colors = CardDefaults.elevatedCardColors(),
     ) {
         Column(Modifier.padding(14.dp)) {
@@ -314,6 +334,17 @@ private fun EmptyResultsState(query: String) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
+}
+
+private fun iconForSource(kind: SourceKind): Int = when (kind) {
+    SourceKind.ALL -> R.drawable.lucide_ic_layout_grid
+    SourceKind.TRANSCRIPT -> R.drawable.lucide_ic_scroll_text
+    SourceKind.ITEM -> R.drawable.lucide_ic_sword
+    SourceKind.LORE -> R.drawable.lucide_ic_book_text
+    SourceKind.GRIMOIRE_CARD -> R.drawable.lucide_ic_sparkles
+    SourceKind.BOOK -> R.drawable.lucide_ic_book_open
+    SourceKind.INTERACTION -> R.drawable.lucide_ic_message_circle
+    SourceKind.RECORD -> R.drawable.lucide_ic_trophy
 }
 
 private fun kindOf(source: String): String = when (source) {

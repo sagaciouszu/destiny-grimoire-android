@@ -234,6 +234,184 @@ std::string run_search(const std::string& query, const std::string& source_filte
     return out.str();
 }
 
+// ---------- Article fetch ----------
+
+// Fetches the full article (all lines/sections) for a search result,
+// keyed by the FTS row's source type and source_slug.
+//
+// Returns: {"found":true, "title":"...", "subtitle":"...", "blocks":[
+//   {"label":"Speaker","heading":"","text":"line","stage":false}, ...]}
+std::string run_article(const std::string& source, const std::string& slug) {
+    std::ostringstream out;
+    std::string title, subtitle, kind = source;
+    std::vector<std::string> blocks_json;
+
+    auto add_plain = [&](const std::string& text) {
+        blocks_json.push_back(
+            std::string("{\"label\":\"\",\"heading\":\"\",\"text\":") + jstr(text) + ",\"stage\":false}");
+    };
+    auto add_labeled = [&](const std::string& label, const std::string& text, bool stage) {
+        blocks_json.push_back(
+            std::string("{\"label\":") + jstr(label) + ",\"heading\":\"\",\"text\":" + jstr(text) +
+            ",\"stage\":" + (stage ? "true" : "false") + "}");
+    };
+    auto add_heading = [&](const std::string& heading, const std::string& text) {
+        blocks_json.push_back(
+            std::string("{\"label\":\"\",\"heading\":") + jstr(heading) + ",\"text\":" + jstr(text) +
+            ",\"stage\":false}");
+    };
+
+    if (source == "transcript_line") {
+        { // transcript header
+            ScopedStmt s;
+            const char* sql = "SELECT title, COALESCE(characters,''), COALESCE(release,'') "
+                              "FROM transcripts WHERE slug = ?";
+            if (sqlite3_prepare_v2(g_db, sql, -1, &s.s, nullptr) != SQLITE_OK ||
+                sqlite3_bind_text(s.s, 1, slug.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK ||
+                sqlite3_step(s.s) != SQLITE_ROW) {
+                return "{\"found\":false}";
+            }
+            title = col_text(s.s, 0);
+            subtitle = col_text(s.s, 1);   // characters
+            if (subtitle.empty()) subtitle = col_text(s.s, 2);  // release
+        }
+        ScopedStmt s;
+        const char* sql = "SELECT COALESCE(tl.speaker,''), tl.line, COALESCE(tl.is_stage_dir,0) "
+                          "FROM transcript_lines tl JOIN transcripts t ON t.id = tl.transcript_id "
+                          "WHERE t.slug = ? ORDER BY tl.id";
+        if (sqlite3_prepare_v2(g_db, sql, -1, &s.s, nullptr) != SQLITE_OK) {
+            return "{\"found\":false}";
+        }
+        sqlite3_bind_text(s.s, 1, slug.c_str(), -1, SQLITE_TRANSIENT);
+        while (sqlite3_step(s.s) == SQLITE_ROW) {
+            std::string speaker = col_text(s.s, 0);
+            std::string line = col_text(s.s, 1);
+            bool stage = sqlite3_column_int(s.s, 2) != 0;
+            if (stage) {
+                add_labeled("stage direction", line, true);
+            } else {
+                add_labeled(speaker, line, false);
+            }
+        }
+    } else if (source == "book_entry") {
+        {
+            ScopedStmt s;
+            const char* sql = "SELECT title FROM books WHERE slug = ?";
+            if (sqlite3_prepare_v2(g_db, sql, -1, &s.s, nullptr) != SQLITE_OK ||
+                sqlite3_bind_text(s.s, 1, slug.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK ||
+                sqlite3_step(s.s) != SQLITE_ROW) {
+                return "{\"found\":false}";
+            }
+            title = col_text(s.s, 0);
+        }
+        {
+            ScopedStmt s;
+            const char* sql = "SELECT COUNT(*) FROM book_entries "
+                              "WHERE book_id = (SELECT id FROM books WHERE slug = ?)";
+            if (sqlite3_prepare_v2(g_db, sql, -1, &s.s, nullptr) == SQLITE_OK) {
+                sqlite3_bind_text(s.s, 1, slug.c_str(), -1, SQLITE_TRANSIENT);
+                if (sqlite3_step(s.s) == SQLITE_ROW) {
+                    long n = sqlite3_column_int64(s.s, 0);
+                    subtitle = std::to_string(n) + (n == 1 ? " section" : " sections");
+                }
+            }
+        }
+        ScopedStmt s;
+        const char* sql = "SELECT COALESCE(title,''), COALESCE(body,'') FROM book_entries "
+                          "WHERE book_id = (SELECT id FROM books WHERE slug = ?) ORDER BY seq";
+        if (sqlite3_prepare_v2(g_db, sql, -1, &s.s, nullptr) != SQLITE_OK) {
+            return "{\"found\":false}";
+        }
+        sqlite3_bind_text(s.s, 1, slug.c_str(), -1, SQLITE_TRANSIENT);
+        while (sqlite3_step(s.s) == SQLITE_ROW) {
+            std::string heading = col_text(s.s, 0);
+            std::string body = col_text(s.s, 1);
+            if (heading.empty()) {
+                add_plain(body);
+            } else {
+                add_heading(heading, body);
+            }
+        }
+    } else if (source == "item") {
+        ScopedStmt s;
+        const char* sql = "SELECT title, COALESCE(text,''), COALESCE(item_type,''), COALESCE(release,'') "
+                          "FROM items WHERE slug = ?";
+        if (sqlite3_prepare_v2(g_db, sql, -1, &s.s, nullptr) != SQLITE_OK ||
+            sqlite3_bind_text(s.s, 1, slug.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK ||
+            sqlite3_step(s.s) != SQLITE_ROW) {
+            return "{\"found\":false}";
+        }
+        title = col_text(s.s, 0);
+        subtitle = col_text(s.s, 2);
+        std::string text = col_text(s.s, 1);
+        std::string release = col_text(s.s, 3);
+        if (!subtitle.empty() && !release.empty()) subtitle += " · " + release;
+        else if (subtitle.empty()) subtitle = release;
+        add_plain(text);
+    } else if (source == "interaction") {
+        ScopedStmt s;
+        const char* sql = "SELECT title, COALESCE(speaker,''), COALESCE(text,''), COALESCE(release,'') "
+                          "FROM interactions WHERE slug = ?";
+        if (sqlite3_prepare_v2(g_db, sql, -1, &s.s, nullptr) != SQLITE_OK ||
+            sqlite3_bind_text(s.s, 1, slug.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK ||
+            sqlite3_step(s.s) != SQLITE_ROW) {
+            return "{\"found\":false}";
+        }
+        title = col_text(s.s, 0);
+        std::string speaker = col_text(s.s, 1);
+        subtitle = speaker;
+        std::string text = col_text(s.s, 2);
+        add_labeled(speaker, text, false);
+    } else if (source == "lore_entry") {
+        ScopedStmt s;
+        const char* sql = "SELECT title, COALESCE(subtitle,''), COALESCE(body,'') "
+                          "FROM lore_entries WHERE hash = CAST(substr(?, 6) AS INTEGER)";
+        if (sqlite3_prepare_v2(g_db, sql, -1, &s.s, nullptr) != SQLITE_OK ||
+            sqlite3_bind_text(s.s, 1, slug.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK ||
+            sqlite3_step(s.s) != SQLITE_ROW) {
+            return "{\"found\":false}";
+        }
+        title = col_text(s.s, 0);
+        subtitle = col_text(s.s, 1);
+        add_plain(col_text(s.s, 2));
+    } else if (source == "grimoire_card") {
+        ScopedStmt s;
+        const char* sql = "SELECT title, COALESCE(body,'') FROM grimoire_cards WHERE slug = ?";
+        if (sqlite3_prepare_v2(g_db, sql, -1, &s.s, nullptr) != SQLITE_OK ||
+            sqlite3_bind_text(s.s, 1, slug.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK ||
+            sqlite3_step(s.s) != SQLITE_ROW) {
+            return "{\"found\":false}";
+        }
+        title = col_text(s.s, 0);
+        subtitle = "Grimoire card · Destiny 1";
+        add_plain(col_text(s.s, 1));
+    } else if (source == "record") {
+        ScopedStmt s;
+        const char* sql = "SELECT title, COALESCE(body,''), COALESCE(release,'') FROM records WHERE slug = ?";
+        if (sqlite3_prepare_v2(g_db, sql, -1, &s.s, nullptr) != SQLITE_OK ||
+            sqlite3_bind_text(s.s, 1, slug.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK ||
+            sqlite3_step(s.s) != SQLITE_ROW) {
+            return "{\"found\":false}";
+        }
+        title = col_text(s.s, 0);
+        subtitle = col_text(s.s, 2);
+        add_plain(col_text(s.s, 1));
+    } else {
+        return "{\"found\":false}";
+    }
+
+    out << "{\"found\":true,\"kind\":" << jstr(kind)
+        << ",\"title\":" << jstr(title)
+        << ",\"subtitle\":" << jstr(subtitle)
+        << ",\"blocks\":[";
+    for (size_t i = 0; i < blocks_json.size(); ++i) {
+        if (i) out << ',';
+        out << blocks_json[i];
+    }
+    out << "]}";
+    return out.str();
+}
+
 } // namespace
 
 extern "C" JNIEXPORT jstring JNICALL
@@ -297,4 +475,21 @@ Java_com_grimoire_android_native_GrimoireNative_nativeClose(
         g_db = nullptr;
         g_db_path.clear();
     }
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_grimoire_android_native_GrimoireNative_nativeArticle(
+        JNIEnv* env, jobject /*thiz*/, jstring jsource, jstring jslug) {
+    const char* s = env->GetStringUTFChars(jsource, nullptr);
+    const char* sl = env->GetStringUTFChars(jslug, nullptr);
+    std::string source = s ? s : "";
+    std::string slug = sl ? sl : "";
+    env->ReleaseStringUTFChars(jsource, s);
+    env->ReleaseStringUTFChars(jslug, sl);
+
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!g_db) {
+        return env->NewStringUTF("{\"found\":false,\"error\":\"database not open\"}");
+    }
+    return env->NewStringUTF(run_article(source, slug).c_str());
 }
