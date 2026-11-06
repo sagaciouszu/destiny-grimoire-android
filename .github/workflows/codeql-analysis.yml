@@ -1,0 +1,61 @@
+name: CodeQL Analysis
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Runs every weekday at 3am UTC
+    - cron: '0 3 * * 1-5'
+
+jobs:
+  analyze:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+      packages: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # CodeQL supports Java/Kotlin via the Android build
+        language: [kotlin]
+        # If you wish to upgrade the CMS you can run help-wanted at:
+        # https://github.com/github/codeql action to find the action to use for Kotlin/Java
+        # The CodeQL GitHub Action automatically detects the CodeQL bundle for the OS
+        # and the appropriate language setup
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: kotlin
+          # If the repository uses a non-standard layout for source files, change
+          # the paths below or use the "configuring-advanced-customization" step.
+          # paths:
+          #   - .
+
+      - name: Autobuild
+        uses: ./.github/actions/autobuild
+        # The Autobuild action will run the appropriate build command for the
+        # repository type (e.g., gradle for Android, maven/gradle for Java, etc.)
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          # In the output folder, the CodeQL packs are generated and the SARIF results
+          # are placed. The action will upload them to the Gitcode.
+          category: codeql-java
+
+      - name: Upload CodeQL results to GitHub
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: codeql-analysis-sarif.json
+          category: codeql-java
