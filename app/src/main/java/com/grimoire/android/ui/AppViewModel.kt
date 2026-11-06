@@ -77,9 +77,23 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _bookmarks = MutableStateFlow(setOf<String>())
     val bookmarks: StateFlow<Set<String>> = _bookmarks.asStateFlow()
 
+    /** Reading progress: "source:slug" -> scroll position (0.0-1.0). */
+    private val _readingProgress = MutableStateFlow(mapOf<String, Float>())
+    val readingProgress: StateFlow<Map<String, Float>> = _readingProgress.asStateFlow()
+
+    /** Recent search queries, most recent first. */
+    private val _recentSearches = MutableStateFlow(emptyList<String>())
+    val recentSearches: StateFlow<List<String>> = _recentSearches.asStateFlow()
+
     init {
         viewModelScope.launch {
             _bookmarks.value = SettingsStore.loadBookmarks(app)
+        }
+        viewModelScope.launch {
+            _readingProgress.value = SettingsStore.loadReadingProgress(app)
+        }
+        viewModelScope.launch {
+            _recentSearches.value = SettingsStore.loadRecentSearches(app)
         }
         viewModelScope.launch {
             val ready = withContext(Dispatchers.IO) { GrimoireDatabase.isReady(app) }
@@ -98,6 +112,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     _loading.value = true
                     _response.value = GrimoireSearchRepository.search(q, s)
                     _loading.value = false
+                    // Add to recent searches
+                    if (q.isNotEmpty()) {
+                        addRecentSearch(q)
+                    }
                 }
         }
     }
@@ -140,6 +158,36 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val updated = _bookmarks.value - key
             _bookmarks.value = updated
             SettingsStore.saveBookmarks(app, updated)
+        }
+    }
+
+    fun addRecentSearch(query: String) {
+        viewModelScope.launch {
+            val current = _recentSearches.value
+            val updated = (listOf(query) + current.filter { it != query }).take(10)
+            _recentSearches.value = updated
+            SettingsStore.saveRecentSearches(app, updated)
+        }
+    }
+
+    fun clearRecentSearches() {
+        viewModelScope.launch {
+            _recentSearches.value = emptyList()
+            SettingsStore.saveRecentSearches(app, emptyList())
+        }
+    }
+
+    fun getReadingProgress(source: String, slug: String): Float {
+        val key = "$source:$slug"
+        return _readingProgress.value[key] ?: 0.0f
+    }
+
+    fun saveReadingProgress(source: String, slug: String, position: Float) {
+        val key = "$source:$slug"
+        viewModelScope.launch {
+            val updated = _readingProgress.value + (key to position.coerceIn(0.0f, 1.0f))
+            _readingProgress.value = updated
+            SettingsStore.saveReadingProgress(app, updated)
         }
     }
 

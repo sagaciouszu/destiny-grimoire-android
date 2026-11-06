@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import org.json.JSONArray
+import org.json.JSONObject
 import java.io.IOException
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
@@ -54,6 +55,8 @@ object SettingsStore {
     private val KEY_SIZE = stringPreferencesKey("reading_size")
     private val KEY_SPACING = stringPreferencesKey("line_spacing")
     private val KEY_BOOKMARKS = stringPreferencesKey("bookmarks")
+    private val KEY_READING_PROGRESS = stringPreferencesKey("reading_progress")
+    private val KEY_RECENT_SEARCHES = stringPreferencesKey("recent_searches")
 
     fun settingsFlow(context: Context): Flow<AppSettings> =
         context.dataStore.data
@@ -114,5 +117,54 @@ object SettingsStore {
             arr.put(key)
         }
         context.dataStore.edit { it[KEY_BOOKMARKS] = arr.toString() }
+    }
+
+    // ---------- Reading progress ----------
+
+    /** Keyed by "source:slug", value is scroll position as a Float (0.0-1.0). */
+    suspend fun loadReadingProgress(context: Context): Map<String, Float> {
+        return runCatching {
+            val prefs = context.dataStore.data.first()
+            val json = prefs[KEY_READING_PROGRESS] ?: "{}"
+            val obj = JSONObject(json)
+            val map = mutableMapOf<String, Float>()
+            val keys = obj.keys()
+            while (keys.hasNext()) {
+                val k = keys.next()
+                map[k] = obj.optDouble(k, 0.0).toFloat()
+            }
+            map.toMap()
+        }.getOrDefault(emptyMap())
+    }
+
+    suspend fun saveReadingProgress(context: Context, progress: Map<String, Float>) {
+        val obj = JSONObject()
+        for ((key, value) in progress) {
+            obj.put(key, value)
+        }
+        context.dataStore.edit { it[KEY_READING_PROGRESS] = obj.toString() }
+    }
+
+    // ---------- Recent searches ----------
+
+    suspend fun loadRecentSearches(context: Context): List<String> {
+        return runCatching {
+            val prefs = context.dataStore.data.first()
+            val json = prefs[KEY_RECENT_SEARCHES] ?: "[]"
+            val arr = JSONArray(json)
+            val list = mutableListOf<String>()
+            for (i in 0 until arr.length()) {
+                list.add(arr.getString(i))
+            }
+            list
+        }.getOrDefault(emptyList())
+    }
+
+    suspend fun saveRecentSearches(context: Context, searches: List<String>) {
+        val arr = JSONArray()
+        for (s in searches) {
+            arr.put(s)
+        }
+        context.dataStore.edit { it[KEY_RECENT_SEARCHES] = arr.toString() }
     }
 }

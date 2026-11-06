@@ -5,7 +5,6 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.speech.tts.TextToSpeech
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,6 +38,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -73,22 +73,34 @@ fun ArticleScreen(
 ) {
     val context = LocalContext.current
     val settings by viewModel.settings.collectAsState()
+    val readingProgress by viewModel.readingProgress.collectAsState()
     var article by remember(source, sourceSlug) { mutableStateOf<ArticleContent?>(null) }
     var showReadingSheet by remember { mutableStateOf(false) }
     var isBookmarked by remember { mutableStateOf(false) }
     var isPlaying by remember { mutableStateOf(false) }
+    var scrollPosition by remember { mutableFloatStateOf(0.0f) }
 
     val tts = remember { TextToSpeech(context) {} }
 
+    val key = "$source:$sourceSlug"
+
     LaunchedEffect(source, sourceSlug) {
         article = GrimoireArticleRepository.load(source, sourceSlug)
-        // Check bookmark state (simple key-based)
         isBookmarked = viewModel.isBookmarked(source, sourceSlug)
+        // Restore saved reading progress
+        scrollPosition = viewModel.getReadingProgress(source, sourceSlug)
     }
 
     LaunchedEffect(tts) {
         tts.setOnUtteranceCompletedListener { _ ->
             isPlaying = false
+        }
+    }
+
+    // Persist scroll position when it changes
+    LaunchedEffect(scrollPosition) {
+        if (article != null && article?.found == true) {
+            viewModel.saveReadingProgress(source, sourceSlug, scrollPosition)
         }
     }
 
@@ -138,6 +150,10 @@ fun ArticleScreen(
         ),
     )
 
+    // Reading time estimate
+    val wordCount = article?.blocks?.sumOf { it.text.length / 6 } ?: 0
+    val readingTimeMinutes = (wordCount / 200).coerceAtLeast(1)
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -159,6 +175,7 @@ fun ArticleScreen(
                         Icon(
                             painter = painterResource(R.drawable.lucide_ic_arrow_left),
                             contentDescription = "Back",
+                            modifier = Modifier.size(24.dp),
                         )
                     }
                 },
@@ -182,12 +199,14 @@ fun ArticleScreen(
                             contentDescription = if (isBookmarked) "Remove bookmark" else "Bookmark article",
                             tint = if (isBookmarked) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(24.dp),
                         )
                     }
                     IconButton(onClick = { showReadingSheet = true }) {
                         Icon(
                             painter = painterResource(R.drawable.lucide_ic_type),
                             contentDescription = "Reading settings",
+                            modifier = Modifier.size(24.dp),
                         )
                     }
                     IconButton(
@@ -207,12 +226,14 @@ fun ArticleScreen(
                                 else R.drawable.lucide_ic_speaker,
                             ),
                             contentDescription = if (isPlaying) "Stop reading aloud" else "Read aloud",
+                            modifier = Modifier.size(24.dp),
                         )
                     }
                     IconButton(onClick = { article?.let { shareArticle(context, it) } }) {
                         Icon(
                             painter = painterResource(R.drawable.lucide_ic_share_2),
                             contentDescription = "Share article",
+                            modifier = Modifier.size(24.dp),
                         )
                     }
                 },
@@ -238,6 +259,8 @@ fun ArticleScreen(
                     settings.fontFamily,
                     settings.fontScale,
                     settings.lineHeightFactor,
+                    scrollPosition = { pos -> scrollPosition = pos },
+                    readingTimeMinutes = readingTimeMinutes,
                 )
             }
         }
@@ -334,8 +357,17 @@ private fun ArticleBody(
     fontFamily: FontFamily,
     fontScale: Float,
     lineHeightFactor: Float,
+    scrollPosition: (Float) -> Unit,
+    readingTimeMinutes: Int,
 ) {
     val scrollState = rememberScrollState()
+
+    // Report scroll position as user reads
+    LaunchedEffect(scrollState.value) {
+        val maxScroll = scrollState.maxValue.toFloat()
+        val position = if (maxScroll > 0) scrollState.value / maxScroll else 0f
+        scrollPosition(position)
+    }
 
     ReadingThemeOverlay(readingTheme) {
         Column(
@@ -371,6 +403,25 @@ private fun ArticleBody(
                 Text(
                     text = article.subtitle,
                     style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            // Reading time estimate
+            Spacer(Modifier.height(4.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(top = 4.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.lucide_ic_clock),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = "~$readingTimeMinutes min read",
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -505,7 +556,7 @@ fun ReadingSettingsSheet(
                         ReadingTheme.DEFAULT -> MaterialTheme.colorScheme.background
                         ReadingTheme.SEPIA -> androidx.compose.ui.graphics.Color(0xFFF5F0E6)
                         ReadingTheme.AMBER -> androidx.compose.ui.graphics.Color(0xFF1A140A)
-                    } as androidx.compose.ui.graphics.Color,
+                    },
                 )
             }
 
@@ -589,7 +640,7 @@ private fun ReadingThemeRow(
             shape = RoundedCornerShape(4.dp),
             modifier = Modifier.size(32.dp),
         ) {
-            Box(Modifier.fillMaxSize())
+            androidx.compose.foundation.layout.Box(Modifier.fillMaxSize())
         }
         Spacer(Modifier.width(12.dp))
         Text(
@@ -602,6 +653,7 @@ private fun ReadingThemeRow(
                 painter = painterResource(R.drawable.lucide_ic_check),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp),
             )
         }
     }
@@ -645,6 +697,7 @@ private fun FontRow(
                 painter = painterResource(R.drawable.lucide_ic_check),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp),
             )
         }
     }

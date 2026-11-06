@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -59,6 +61,7 @@ fun SearchScreen(
     onOpenSettings: () -> Unit,
 ) {
     val state by viewModel.search.collectAsState()
+    val recentSearches by viewModel.recentSearches.collectAsState()
 
     Column(Modifier.fillMaxSize()) {
         // Header bar with the scroll-text glyph + app name
@@ -67,10 +70,11 @@ fun SearchScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         painter = painterResource(R.drawable.lucide_ic_scroll_text),
-                        contentDescription = null,
+                        contentDescription = "Grimoire",
                         tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp),
                     )
-                    Spacer(Modifier.widthIn(12.dp))
+                    Spacer(Modifier.width(12.dp))
                     Text(
                         "Grimoire",
                         style = MaterialTheme.typography.titleLarge,
@@ -84,6 +88,7 @@ fun SearchScreen(
                         painter = painterResource(R.drawable.lucide_ic_settings),
                         contentDescription = "Settings",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp),
                     )
                 }
             },
@@ -98,21 +103,26 @@ fun SearchScreen(
             onValueChange = viewModel::onQueryChange,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             placeholder = { Text("Search the grimoire…") },
             leadingIcon = {
                 Icon(
                     painter = painterResource(R.drawable.lucide_ic_search),
-                    contentDescription = null,
+                    contentDescription = "Search",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp),
                 )
             },
             trailingIcon = {
                 if (state.query.isNotEmpty()) {
-                    IconButton(onClick = { viewModel.onQueryChange("") }) {
+                    IconButton(
+                        onClick = { viewModel.onQueryChange("") },
+                    ) {
                         Icon(
                             painter = painterResource(R.drawable.lucide_ic_x),
                             contentDescription = "Clear search",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(24.dp),
                         )
                     }
                 }
@@ -147,7 +157,7 @@ fun SearchScreen(
 
         // Results
         when {
-            state.query.isBlank() -> PromptIdleState()
+            state.query.isBlank() -> PromptIdleState(recentSearches, viewModel)
             state.response.results.isEmpty() && !state.loading -> EmptyResultsState(state.query)
             else -> ResultsList(results = state.response.results, onOpenArticle = onOpenArticle)
         }
@@ -160,7 +170,7 @@ private fun LazyRowSourceFilter(
     onSelect: (SourceKind) -> Unit,
 ) {
     androidx.compose.foundation.lazy.LazyRow(
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(SourceKind.entries.toList()) { kind ->
@@ -175,6 +185,7 @@ private fun LazyRowSourceFilter(
                         modifier = Modifier.size(FilterChipDefaults.IconSize),
                     )
                 },
+                // FilterChip already provides ≥48dp touch target and ripple
             )
         }
     }
@@ -208,10 +219,13 @@ private fun ResultCard(result: SearchResult, onOpenArticle: () -> Unit) {
     ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onOpenArticle, role = Role.Button),
+            .clickable(
+                onClick = onOpenArticle,
+                role = Role.Button,
+            ),
         colors = CardDefaults.elevatedCardColors(),
     ) {
-        Column(Modifier.padding(14.dp)) {
+        Column(Modifier.padding(16.dp)) {
             // Title row + copy button
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -234,6 +248,7 @@ private fun ResultCard(result: SearchResult, onOpenArticle: () -> Unit) {
                         painter = painterResource(R.drawable.lucide_ic_copy),
                         contentDescription = "Copy snippet",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp),
                     )
                 }
             }
@@ -245,7 +260,7 @@ private fun ResultCard(result: SearchResult, onOpenArticle: () -> Unit) {
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(top = 2.dp),
+                    modifier = Modifier.padding(top = 4.dp),
                 )
             }
 
@@ -255,12 +270,12 @@ private fun ResultCard(result: SearchResult, onOpenArticle: () -> Unit) {
                     text = snippetText,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 6.dp),
+                    modifier = Modifier.padding(top = 8.dp),
                 )
             }
 
             // Source kind chip
-            Row(Modifier.padding(top = 10.dp)) {
+            Row(Modifier.padding(top = 12.dp)) {
                 MetaChip(kindOf(result.source))
             }
         }
@@ -283,7 +298,10 @@ private fun MetaChip(label: String) {
 }
 
 @Composable
-private fun PromptIdleState() {
+private fun PromptIdleState(
+    recentSearches: List<String>,
+    viewModel: AppViewModel,
+) {
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -291,11 +309,11 @@ private fun PromptIdleState() {
     ) {
         Icon(
             painter = painterResource(R.drawable.lucide_ic_book_open_text),
-            contentDescription = null,
+            contentDescription = "Grimoire archive",
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-            modifier = Modifier.fillMaxSize(0.18f),
+            modifier = Modifier.size(96.dp),
         )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(20.dp))
         Text(
             text = "Search 69,000+ lines of canon",
             style = MaterialTheme.typography.titleMedium,
@@ -306,6 +324,46 @@ private fun PromptIdleState() {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
         )
+
+        if (recentSearches.isNotEmpty()) {
+            Spacer(Modifier.height(24.dp))
+            Text(
+                text = "Recent searches",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp).align(Alignment.Start),
+            )
+            Spacer(Modifier.height(8.dp))
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            ) {
+                items(recentSearches) { query ->
+                    TextButton(
+                        onClick = {
+                            viewModel.onQueryChange(query)
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.lucide_ic_history),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = query,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -320,9 +378,9 @@ private fun EmptyResultsState(query: String) {
             painter = painterResource(R.drawable.lucide_ic_search),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-            modifier = Modifier.fillMaxSize(0.14f),
+            modifier = Modifier.size(80.dp),
         )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(20.dp))
         Text(
             text = "No matches for “$query”",
             style = MaterialTheme.typography.titleMedium,
