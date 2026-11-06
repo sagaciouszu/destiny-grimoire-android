@@ -1,7 +1,11 @@
 package com.grimoire.android.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
-import android.content.Intent
+import android.speech.tts.TextToSpeech
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,9 +15,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,15 +46,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.grimoire.android.R
 import com.grimoire.android.data.ArticleContent
+import com.grimoire.android.data.FontFamily
 import com.grimoire.android.data.GrimoireArticleRepository
 import com.grimoire.android.data.LineSpacing
 import com.grimoire.android.data.ReadingSize
+import com.grimoire.android.data.ReadingTheme
+import com.grimoire.android.ui.theme.ReadingFontStyle
+import com.grimoire.android.ui.theme.ReadingThemeOverlay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,36 +75,85 @@ fun ArticleScreen(
     val settings by viewModel.settings.collectAsState()
     var article by remember(source, sourceSlug) { mutableStateOf<ArticleContent?>(null) }
     var showReadingSheet by remember { mutableStateOf(false) }
+    var isBookmarked by remember { mutableStateOf(false) }
+    var isPlaying by remember { mutableStateOf(false) }
+
+    val tts = remember { TextToSpeech(context) {} }
 
     LaunchedEffect(source, sourceSlug) {
         article = GrimoireArticleRepository.load(source, sourceSlug)
+        // Check bookmark state (simple key-based)
+        isBookmarked = viewModel.isBookmarked(source, sourceSlug)
+    }
+
+    LaunchedEffect(tts) {
+        tts.setOnUtteranceCompletedListener { _ ->
+            isPlaying = false
+        }
     }
 
     val fs = settings.fontScale
     val lh = settings.lineHeightFactor
 
-    val titleStyle = MaterialTheme.typography.headlineSmall.copy(
-        fontSize = 23.sp * fs,
-        lineHeight = 23.sp * fs * lh,
+    // --- Typography, scaled by reading settings + font family ---
+    val baseSize = 16.sp
+    val titleExtra = 22.sp
+    val largeSize = 17.sp
+    val smallSize = 11.sp
+
+    val titleStyle = ReadingFontStyle(
+        settings.fontFamily,
+        TextStyle(
+            fontSize = titleExtra * fs,
+            lineHeight = titleExtra * fs * lh,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 0.5.sp,
+        ),
     )
-    val bodyStyle = MaterialTheme.typography.bodyLarge.copy(
-        fontSize = 16.sp * fs,
-        lineHeight = 16.sp * fs * lh,
+
+    val bodyStyle = ReadingFontStyle(
+        settings.fontFamily,
+        TextStyle(
+            fontSize = baseSize * fs,
+            lineHeight = baseSize * fs * lh,
+            fontWeight = FontWeight.Normal,
+        ),
     )
-    val headingStyle = MaterialTheme.typography.titleMedium.copy(
-        fontSize = 17.sp * fs,
-        lineHeight = 17.sp * fs * lh,
+
+    val headingStyle = ReadingFontStyle(
+        settings.fontFamily,
+        TextStyle(
+            fontSize = largeSize * fs,
+            lineHeight = largeSize * fs * lh,
+            fontWeight = FontWeight.SemiBold,
+        ),
     )
-    val speakerStyle = MaterialTheme.typography.labelLarge.copy(
-        fontSize = 11.sp * fs,
-        fontWeight = FontWeight.Bold,
-        letterSpacing = 0.5.sp,
+
+    val speakerStyle = ReadingFontStyle(
+        settings.fontFamily,
+        TextStyle(
+            fontSize = smallSize * fs,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.75.sp,
+        ),
     )
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(article?.title ?: kindLabel(source)) },
+                title = {
+                    val a = article
+                    if (a != null && a.found) {
+                        Text(
+                            text = a.title,
+                            style = titleStyle,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 2,
+                        )
+                    } else {
+                        Text(text = kindLabel(source), style = MaterialTheme.typography.bodyMedium)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -100,10 +163,50 @@ fun ArticleScreen(
                     }
                 },
                 actions = {
+                    IconButton(
+                        onClick = {
+                            if (isBookmarked) {
+                                viewModel.removeBookmark(source, sourceSlug)
+                                isBookmarked = false
+                            } else {
+                                viewModel.addBookmark(source, sourceSlug, article?.title ?: "")
+                                isBookmarked = true
+                            }
+                        },
+                    ) {
+                        Icon(
+                            painter = painterResource(
+                                if (isBookmarked) R.drawable.lucide_ic_bookmark_check
+                                else R.drawable.lucide_ic_bookmark,
+                            ),
+                            contentDescription = if (isBookmarked) "Remove bookmark" else "Bookmark article",
+                            tint = if (isBookmarked) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     IconButton(onClick = { showReadingSheet = true }) {
                         Icon(
                             painter = painterResource(R.drawable.lucide_ic_type),
                             contentDescription = "Reading settings",
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            if (isPlaying) {
+                                tts.stop()
+                                isPlaying = false
+                            } else {
+                                article?.let { speakArticle(context, tts, it) }
+                                isPlaying = true
+                            }
+                        },
+                    ) {
+                        Icon(
+                            painter = painterResource(
+                                if (isPlaying) R.drawable.lucide_ic_volume_x
+                                else R.drawable.lucide_ic_speaker,
+                            ),
+                            contentDescription = if (isPlaying) "Stop reading aloud" else "Read aloud",
                         )
                     }
                     IconButton(onClick = { article?.let { shareArticle(context, it) } }) {
@@ -113,7 +216,9 @@ fun ArticleScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(),
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                ),
             )
         },
     ) { padding ->
@@ -122,7 +227,18 @@ fun ArticleScreen(
             else -> if (!a.found) {
                 NotFoundState(padding, MaterialTheme.colorScheme, onBack)
             } else {
-                ArticleBody(a, padding, titleStyle, bodyStyle, headingStyle, speakerStyle)
+                ArticleBody(
+                    a,
+                    padding,
+                    titleStyle,
+                    bodyStyle,
+                    headingStyle,
+                    speakerStyle,
+                    settings.readingTheme,
+                    settings.fontFamily,
+                    settings.fontScale,
+                    settings.lineHeightFactor,
+                )
             }
         }
     }
@@ -130,8 +246,20 @@ fun ArticleScreen(
     if (showReadingSheet) {
         ReadingSettingsSheet(
             viewModel = viewModel,
+            currentTheme = settings.readingTheme,
+            currentFont = settings.fontFamily,
+            currentSize = settings.readingSize,
+            currentSpacing = settings.lineSpacing,
+            onThemeChange = { viewModel.onReadingThemeChange(it) },
+            onFontChange = { viewModel.onFontFamilyChange(it) },
+            onSizeChange = { viewModel.onReadingSizeChange(it) },
+            onSpacingChange = { viewModel.onLineSpacingChange(it) },
             onDismiss = { showReadingSheet = false },
         )
+    }
+
+    LaunchedEffect(Unit) {
+        tts.shutdown()
     }
 }
 
@@ -144,13 +272,17 @@ private fun LoadingState(
         modifier = Modifier
             .fillMaxSize()
             .padding(padding)
-            .padding(24.dp),
+            .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        LinearProgressIndicator()
-        Spacer(Modifier.height(12.dp))
-        Text("Opening the article…", color = colors.onSurfaceVariant)
+        CircularProgressIndicator()
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = "Opening the article…",
+            style = MaterialTheme.typography.bodyMedium,
+            color = colors.onSurfaceVariant,
+        )
     }
 }
 
@@ -164,23 +296,29 @@ private fun NotFoundState(
         modifier = Modifier
             .fillMaxSize()
             .padding(padding)
-            .padding(24.dp),
+            .padding(horizontal = 24.dp, vertical = 48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         Icon(
             painter = painterResource(R.drawable.lucide_ic_file_text),
-            contentDescription = null,
+            contentDescription = "Article not found",
             tint = colors.onSurfaceVariant,
+            modifier = Modifier.size(48.dp),
         )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(16.dp))
         Text(
-            "That article could not be found in the current archive.",
+            text = "That article could not be found in the current archive.",
             style = MaterialTheme.typography.bodyLarge,
             color = colors.onSurfaceVariant,
+            textAlign = TextAlign.Center,
         )
-        Spacer(Modifier.height(8.dp))
-        TextButton(onClick = onBack) { Text("Back to search") }
+        Spacer(Modifier.height(16.dp))
+        TextButton(
+            onClick = onBack,
+        ) {
+            Text("Back to search")
+        }
     }
 }
 
@@ -188,88 +326,98 @@ private fun NotFoundState(
 private fun ArticleBody(
     article: ArticleContent,
     padding: androidx.compose.foundation.layout.PaddingValues,
-    titleStyle: androidx.compose.ui.text.TextStyle,
-    bodyStyle: androidx.compose.ui.text.TextStyle,
-    headingStyle: androidx.compose.ui.text.TextStyle,
-    speakerStyle: androidx.compose.ui.text.TextStyle,
+    titleStyle: TextStyle,
+    bodyStyle: TextStyle,
+    headingStyle: TextStyle,
+    speakerStyle: TextStyle,
+    readingTheme: ReadingTheme,
+    fontFamily: FontFamily,
+    fontScale: Float,
+    lineHeightFactor: Float,
 ) {
     val scrollState = rememberScrollState()
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(padding)
-            .verticalScroll(scrollState)
-            .padding(horizontal = 20.dp, vertical = 8.dp),
-    ) {
-        // Kind badge — tinted per Destiny rarity through Material 3 roles
-        Surface(
-            color = badgeBackground(article.kind),
-            shape = MaterialTheme.shapes.small,
+
+    ReadingThemeOverlay(readingTheme) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(scrollState)
+                .padding(horizontal = 20.dp, vertical = 8.dp),
         ) {
-            Text(
-                text = kindLabel(article.kind).uppercase(),
-                style = MaterialTheme.typography.labelSmall,
-                color = badgeForeground(article.kind),
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            )
-        }
+            // Kind badge
+            Surface(
+                color = badgeBackground(article.kind),
+                shape = MaterialTheme.shapes.small,
+            ) {
+                Text(
+                    text = article.kind.uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = badgeForeground(article.kind),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                )
+            }
 
-        Spacer(Modifier.height(10.dp))
-        Text(
-            text = article.title,
-            style = titleStyle,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(end = 8.dp),
-        )
-        if (article.subtitle.isNotBlank()) {
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(12.dp))
             Text(
-                text = article.subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = article.title,
+                style = titleStyle,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(end = 8.dp),
             )
-        }
-        Spacer(Modifier.height(12.dp))
-        androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
+            if (article.subtitle.isNotBlank()) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = article.subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.height(16.dp))
+            androidx.compose.material3.HorizontalDivider(
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
+            )
 
-        // Blocks are selectable so quotes can be copied straight out
-        androidx.compose.foundation.text.selection.SelectionContainer {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                for (block in article.blocks) {
-                    when {
-                        block.heading.isNotBlank() -> HeadingBlock(block.heading, headingStyle)
-                        block.stage -> StageBlock(block.text, bodyStyle)
-                        block.label.isNotBlank() -> SpeakerBlock(block.label, block.text, speakerStyle, bodyStyle)
-                        else -> PlainBlock(block.text, bodyStyle)
+            // Blocks are selectable so quotes can be copied straight out
+            SelectionContainer {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    for (block in article.blocks) {
+                        when {
+                            block.heading.isNotBlank() -> HeadingBlock(block.heading, headingStyle)
+                            block.stage -> StageBlock(block.text, bodyStyle)
+                            block.label.isNotBlank() -> SpeakerBlock(block.label, block.text, speakerStyle, bodyStyle)
+                            else -> PlainBlock(block.text, bodyStyle)
+                        }
                     }
                 }
             }
-        }
 
-        Spacer(Modifier.height(24.dp))
-        Text(
-            text = "Source: The Ishtar Collective · Destinypedia · reviewed captions.\nDestiny is a trademark of Bungie Inc.",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-        )
-        Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(32.dp))
+            Text(
+                text = "Source: The Ishtar Collective · Destinypedia · reviewed captions.\nDestiny is a trademark of Bungie Inc.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(40.dp))
+        }
     }
 }
 
 @Composable
-private fun HeadingBlock(text: String, style: androidx.compose.ui.text.TextStyle) {
+private fun HeadingBlock(text: String, style: TextStyle) {
     Text(
         text = text,
         style = style,
         fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.onSurface,
-        modifier = Modifier.padding(top = 6.dp),
+        modifier = Modifier.padding(top = 8.dp),
     )
 }
 
 @Composable
-private fun StageBlock(text: String, style: androidx.compose.ui.text.TextStyle) {
+private fun StageBlock(text: String, style: TextStyle) {
     Text(
         text = text,
         style = style.copy(fontStyle = FontStyle.Italic),
@@ -281,8 +429,8 @@ private fun StageBlock(text: String, style: androidx.compose.ui.text.TextStyle) 
 private fun SpeakerBlock(
     speaker: String,
     text: String,
-    speakerStyle: androidx.compose.ui.text.TextStyle,
-    bodyStyle: androidx.compose.ui.text.TextStyle,
+    speakerStyle: TextStyle,
+    bodyStyle: TextStyle,
 ) {
     Column {
         Text(
@@ -299,7 +447,7 @@ private fun SpeakerBlock(
 }
 
 @Composable
-private fun PlainBlock(text: String, style: androidx.compose.ui.text.TextStyle) {
+private fun PlainBlock(text: String, style: TextStyle) {
     Text(
         text = text,
         style = style,
@@ -311,12 +459,22 @@ private fun PlainBlock(text: String, style: androidx.compose.ui.text.TextStyle) 
 @Composable
 fun ReadingSettingsSheet(
     viewModel: AppViewModel,
+    currentTheme: ReadingTheme,
+    currentFont: FontFamily,
+    currentSize: ReadingSize,
+    currentSpacing: LineSpacing,
+    onThemeChange: (ReadingTheme) -> Unit,
+    onFontChange: (FontFamily) -> Unit,
+    onSizeChange: (ReadingSize) -> Unit,
+    onSpacingChange: (LineSpacing) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val settings by viewModel.settings.collectAsState()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -329,41 +487,165 @@ fun ReadingSettingsSheet(
                 fontWeight = FontWeight.SemiBold,
             )
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(16.dp))
+
+            // Reading theme
             Text(
-                "Font size",
+                text = "Reading theme",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Spacer(Modifier.height(8.dp))
+            for (theme in ReadingTheme.entries) {
+                ReadingThemeRow(
+                    label = theme.label,
+                    selected = currentTheme == theme,
+                    onSelect = { onThemeChange(theme) },
+                    previewColor = when (theme) {
+                        ReadingTheme.DEFAULT -> MaterialTheme.colorScheme.background
+                        ReadingTheme.SEPIA -> androidx.compose.ui.graphics.Color(0xFFF5F0E6)
+                        ReadingTheme.AMBER -> androidx.compose.ui.graphics.Color(0xFF1A140A)
+                    } as androidx.compose.ui.graphics.Color,
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // Font family
+            Text(
+                text = "Font family",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+            for (font in FontFamily.entries) {
+                FontRow(
+                    label = font.label,
+                    selected = currentFont == font,
+                    onSelect = { onFontChange(font) },
+                    fontFamily = font,
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // Font size
+            Text(
+                text = "Font size",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
             for (size in ReadingSize.entries) {
                 RadioOptionRow(
                     label = size.label,
-                    selected = settings.readingSize == size,
-                    onSelect = { viewModel.onReadingSizeChange(size) },
+                    selected = currentSize == size,
+                    onSelect = { onSizeChange(size) },
                 ) {
                     Text(
                         text = "Aa",
-                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 14.sp * size.scale),
+                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp * size.scale),
                         fontWeight = FontWeight.Medium,
                     )
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(16.dp))
+
+            // Line spacing
             Text(
-                "Line spacing",
+                text = "Line spacing",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Spacer(Modifier.height(8.dp))
             for (spacing in LineSpacing.entries) {
                 RadioOptionRow(
                     label = spacing.label,
-                    selected = settings.lineSpacing == spacing,
-                    onSelect = { viewModel.onLineSpacingChange(spacing) },
+                    selected = currentSpacing == spacing,
+                    onSelect = { onSpacingChange(spacing) },
                 )
             }
+        }
+    }
+}
 
-            Spacer(Modifier.height(8.dp))
+@Composable
+private fun ReadingThemeRow(
+    label: String,
+    selected: Boolean,
+    onSelect: () -> Unit,
+    previewColor: androidx.compose.ui.graphics.Color,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onSelect)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Surface(
+            color = previewColor,
+            shape = RoundedCornerShape(4.dp),
+            modifier = Modifier.size(32.dp),
+        ) {
+            Box(Modifier.fillMaxSize())
+        }
+        Spacer(Modifier.width(12.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f),
+        )
+        if (selected) {
+            Icon(
+                painter = painterResource(R.drawable.lucide_ic_check),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+    }
+}
+
+@Composable
+private fun FontRow(
+    label: String,
+    selected: Boolean,
+    onSelect: () -> Unit,
+    fontFamily: FontFamily,
+) {
+    val typeface = when (fontFamily) {
+        FontFamily.SERIF -> androidx.compose.ui.text.font.FontFamily.Serif
+        FontFamily.MONOSPACE -> androidx.compose.ui.text.font.FontFamily.Monospace
+        FontFamily.SANS_SERIF -> androidx.compose.ui.text.font.FontFamily.Default
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onSelect)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "Aa",
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontFamily = typeface,
+                fontSize = 18.sp,
+            ),
+            fontWeight = FontWeight.Medium,
+        )
+        Spacer(Modifier.width(12.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f),
+        )
+        if (selected) {
+            Icon(
+                painter = painterResource(R.drawable.lucide_ic_check),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
         }
     }
 }
@@ -378,13 +660,14 @@ private fun RadioOptionRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 2.dp),
+            .clickable(onClick = onSelect)
+            .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             RadioButton(selected = selected, onClick = onSelect)
-            Spacer(Modifier.width(4.dp))
+            Spacer(Modifier.width(8.dp))
             Text(label, style = MaterialTheme.typography.bodyLarge)
         }
         trailing?.invoke()
@@ -392,12 +675,21 @@ private fun RadioOptionRow(
 }
 
 private fun shareArticle(context: Context, article: ArticleContent) {
-    val intent = Intent(Intent.ACTION_SEND).apply {
+    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
         type = "text/plain"
-        putExtra(Intent.EXTRA_SUBJECT, article.title)
-        putExtra(Intent.EXTRA_TEXT, GrimoireArticleRepository.toPlainText(article))
+        putExtra(android.content.Intent.EXTRA_SUBJECT, article.title)
+        putExtra(android.content.Intent.EXTRA_TEXT, GrimoireArticleRepository.toPlainText(article))
     }
-    context.startActivity(Intent.createChooser(intent, null))
+    context.startActivity(android.content.Intent.createChooser(intent, "Share article via"))
+}
+
+private fun speakArticle(
+    context: Context,
+    tts: TextToSpeech,
+    article: ArticleContent,
+) {
+    val text = GrimoireArticleRepository.toPlainText(article)
+    tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "grimoire_utterance")
 }
 
 @Composable
@@ -428,3 +720,18 @@ fun kindLabel(source: String): String = when (source) {
     "record" -> "Triumph"
     else -> source
 }
+
+// Extension properties for UI display labels
+private val ReadingTheme.label: String
+    get() = when (this) {
+        ReadingTheme.DEFAULT -> "Default"
+        ReadingTheme.SEPIA -> "Sepia"
+        ReadingTheme.AMBER -> "Amber"
+    }
+
+private val FontFamily.label: String
+    get() = when (this) {
+        FontFamily.SANS_SERIF -> "Sans-serif"
+        FontFamily.SERIF -> "Serif"
+        FontFamily.MONOSPACE -> "Monospace"
+    }

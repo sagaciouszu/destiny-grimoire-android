@@ -72,10 +72,46 @@ private val LightColors = lightColorScheme(
     outline = Color(0xFF8F8C84),
 )
 
+// ---------- Reading themes (applied to article content only) ----------
+
+// Sepia: warm cream background, soft brown text — comfortable for long reading
+private val SepiaColors = lightColorScheme(
+    background = Color(0xFFF5F0E6),
+    onBackground = Color(0xFF4A3F35),
+    surface = Color(0xFFF5F0E6),
+    onSurface = Color(0xFF4A3F35),
+    surfaceVariant = Color(0xFFE8E0D2),
+    onSurfaceVariant = Color(0xFF6B6055),
+    outline = Color(0xFFB9AE9E),
+    primary = Color(0xFF8A6D3B),
+    onPrimary = Color(0xFFFFFFFF),
+    secondary = Color(0xFF7A5A2B),
+    onSecondary = Color(0xFFFFFFFF),
+    tertiary = Color(0xFF6E5B4E),
+    onTertiary = Color(0xFFFFFFFF),
+)
+
+// Amber: Destiny-inspired gold-on-dark for reading in low light
+private val AmberColors = darkColorScheme(
+    background = Color(0xFF1A140A),
+    onBackground = Color(0xFFEAD8A8),
+    surface = Color(0xFF1A140A),
+    onSurface = Color(0xFFEAD8A8),
+    surfaceVariant = Color(0xFF2A2010),
+    onSurfaceVariant = Color(0xFFC9B18A),
+    outline = Color(0xFF4A3A20),
+    primary = Color(0xFFCDAD36),
+    onPrimary = Color(0xFF241A05),
+    secondary = Color(0xFF4F3663),
+    onSecondary = Color(0xFFFFFFFF),
+    tertiary = Color(0xFF7FA8CC),
+    onTertiary = Color(0xFF182431),
+)
+
 @Composable
 fun GrimoireTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val colorScheme = when {
@@ -90,4 +126,35 @@ fun GrimoireTheme(
         colorScheme = colorScheme,
         content = content,
     )
+}
+
+/// Wraps article content with a reading theme overlay (sepia / amber).
+/// Falls back to the current MaterialTheme colors for DEFAULT.
+@Composable
+fun ReadingThemeOverlay(
+    theme: com.grimoire.android.data.ReadingTheme,
+    content: @Composable () -> Unit,
+) {
+    val colorScheme = when (theme) {
+        com.grimoire.android.data.ReadingTheme.SEPIA -> SepiaColors
+        com.grimoire.android.data.ReadingTheme.AMBER -> AmberColors
+        com.grimoire.android.data.ReadingTheme.DEFAULT -> MaterialTheme.colorScheme
+    }
+    MaterialTheme(
+        colorScheme = colorScheme,
+        content = content,
+    )
+}
+
+/// Returns a TextStyle with the selected reading font family applied.
+fun ReadingFontStyle(
+    family: com.grimoire.android.data.FontFamily,
+    base: androidx.compose.ui.text.TextStyle,
+): androidx.compose.ui.text.TextStyle {
+    val typeface = when (family) {
+        com.grimoire.android.data.FontFamily.SERIF -> androidx.compose.ui.text.font.FontFamily.Serif
+        com.grimoire.android.data.FontFamily.MONOSPACE -> androidx.compose.ui.text.font.FontFamily.Monospace
+        com.grimoire.android.data.FontFamily.SANS_SERIF -> androidx.compose.ui.text.font.FontFamily.Default
+    }
+    return base.copy(fontFamily = typeface)
 }

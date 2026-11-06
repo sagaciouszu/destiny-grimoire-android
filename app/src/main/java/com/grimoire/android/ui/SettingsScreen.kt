@@ -1,6 +1,7 @@
 package com.grimoire.android.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,13 +12,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -38,9 +42,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.grimoire.android.R
+import com.grimoire.android.data.FontFamily
 import com.grimoire.android.data.GrimoireDatabase
 import com.grimoire.android.data.LineSpacing
 import com.grimoire.android.data.ReadingSize
+import com.grimoire.android.data.ReadingTheme
 import com.grimoire.android.data.ThemeMode
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,6 +57,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val settings by viewModel.settings.collectAsState()
+    val bookmarks by viewModel.bookmarks.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showLicensesDialog by remember { mutableStateOf(false) }
 
@@ -116,6 +123,54 @@ fun SettingsScreen(
 
             // ---------- Reading ----------
             item { SectionHeader("Reading", R.drawable.lucide_ic_type) }
+            item {
+                ReadingThemeRow(
+                    label = "Default",
+                    icon = R.drawable.lucide_ic_file_text,
+                    selected = settings.readingTheme == ReadingTheme.DEFAULT,
+                    onSelect = { viewModel.onReadingThemeChange(ReadingTheme.DEFAULT) },
+                )
+            }
+            item {
+                ReadingThemeRow(
+                    label = "Sepia",
+                    icon = R.drawable.lucide_ic_file_text,
+                    selected = settings.readingTheme == ReadingTheme.SEPIA,
+                    onSelect = { viewModel.onReadingThemeChange(ReadingTheme.SEPIA) },
+                    previewColor = androidx.compose.ui.graphics.Color(0xFFF5F0E6),
+                )
+            }
+            item {
+                ReadingThemeRow(
+                    label = "Amber",
+                    icon = R.drawable.lucide_ic_file_text,
+                    selected = settings.readingTheme == ReadingTheme.AMBER,
+                    onSelect = { viewModel.onReadingThemeChange(ReadingTheme.AMBER) },
+                    previewColor = androidx.compose.ui.graphics.Color(0xFF1A140A),
+                )
+            }
+            item {
+                FontFamilyRow(
+                    label = "Sans-serif",
+                    selected = settings.fontFamily == FontFamily.SANS_SERIF,
+                    onSelect = { viewModel.onFontFamilyChange(FontFamily.SANS_SERIF) },
+                )
+            }
+            item {
+                FontFamilyRow(
+                    label = "Serif",
+                    selected = settings.fontFamily == FontFamily.SERIF,
+                    onSelect = { viewModel.onFontFamilyChange(FontFamily.SERIF) },
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Normal,
+                )
+            }
+            item {
+                FontFamilyRow(
+                    label = "Monospace",
+                    selected = settings.fontFamily == FontFamily.MONOSPACE,
+                    onSelect = { viewModel.onFontFamilyChange(FontFamily.MONOSPACE) },
+                )
+            }
             items(ReadingSize.entries.toList()) { size ->
                 RadioRow(
                     title = size.label,
@@ -145,6 +200,25 @@ fun SettingsScreen(
                     selected = settings.lineSpacing == spacing,
                     onSelect = { viewModel.onLineSpacingChange(spacing) },
                 )
+            }
+
+            // ---------- Bookmarks ----------
+            item { SectionHeader("Bookmarks", R.drawable.lucide_ic_bookmark) }
+            item {
+                SettingRow(
+                    icon = R.drawable.lucide_ic_bookmark,
+                    title = "Your bookmarks",
+                    subtitle = "${bookmarks.size} saved article${if (bookmarks.size != 1) "s" else ""}",
+                    onClick = null,
+                    titleColor = MaterialTheme.colorScheme.onSurface,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                ) {
+                    Text(
+                        text = if (bookmarks.isEmpty()) "None yet" else "Tap to view",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
 
             // ---------- Data ----------
@@ -213,7 +287,7 @@ fun SettingsScreen(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 ) {
                     Text(
-                        text = "0.2.0 (2)",
+                        text = "0.2.0 (3)",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -325,6 +399,59 @@ private fun ThemeRadioRow(label: String, icon: Int, selected: Boolean, onSelect:
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(24.dp),
+        )
+        Spacer(Modifier.width(16.dp))
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        RadioButton(selected = selected, onClick = onSelect)
+    }
+}
+
+@Composable
+private fun ReadingThemeRow(
+    label: String,
+    icon: Int,
+    selected: Boolean,
+    onSelect: () -> Unit,
+    previewColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surface,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onSelect)
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Surface(
+            color = previewColor,
+            shape = RoundedCornerShape(4.dp),
+            modifier = Modifier.size(24.dp),
+        ) {
+            androidx.compose.foundation.layout.Box(Modifier.fillMaxSize())
+        }
+        Spacer(Modifier.width(16.dp))
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        RadioButton(selected = selected, onClick = onSelect)
+    }
+}
+
+@Composable
+private fun FontFamilyRow(
+    label: String,
+    selected: Boolean,
+    onSelect: () -> Unit,
+    fontStyle: androidx.compose.ui.text.font.FontStyle = androidx.compose.ui.text.font.FontStyle.Normal,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onSelect)
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "Aa",
+            style = MaterialTheme.typography.bodyLarge.copy(fontStyle = fontStyle),
+            fontWeight = FontWeight.Medium,
         )
         Spacer(Modifier.width(16.dp))
         Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))

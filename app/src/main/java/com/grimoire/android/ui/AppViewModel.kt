@@ -3,19 +3,21 @@ package com.grimoire.android.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.grimoire.android.data.AppSettings
+import com.grimoire.android.data.FontFamily
 import com.grimoire.android.data.GrimoireDatabase
 import com.grimoire.android.data.GrimoireSearchRepository
-import com.grimoire.android.data.SearchResponse
-import com.grimoire.android.data.SourceKind
-import com.grimoire.android.data.AppSettings
 import com.grimoire.android.data.LineSpacing
 import com.grimoire.android.data.ReadingSize
+import com.grimoire.android.data.ReadingTheme
+import com.grimoire.android.data.SearchResponse
 import com.grimoire.android.data.SettingsStore
+import com.grimoire.android.data.SourceKind
 import com.grimoire.android.data.ThemeMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +29,8 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 
 enum class DatabaseState {
     CHECKING,
@@ -69,21 +73,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         SettingsStore.settingsFlow(app)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings())
 
-    fun onThemeModeChange(mode: ThemeMode) =
-        viewModelScope.launch { SettingsStore.setThemeMode(app, mode) }
-
-    fun onDynamicColorChange(enabled: Boolean) =
-        viewModelScope.launch { SettingsStore.setDynamicColor(app, enabled) }
-
-    fun onReadingSizeChange(size: ReadingSize) =
-        viewModelScope.launch { SettingsStore.setReadingSize(app, size) }
-
-    fun onLineSpacingChange(spacing: LineSpacing) =
-        viewModelScope.launch { SettingsStore.setLineSpacing(app, spacing) }
-
-    private var downloadJob: Job? = null
+    /** Bookmarked article keys: "source:slug". */
+    private val _bookmarks = MutableStateFlow(setOf<String>())
+    val bookmarks: StateFlow<Set<String>> = _bookmarks.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            _bookmarks.value = SettingsStore.loadBookmarks(app)
+        }
         viewModelScope.launch {
             val ready = withContext(Dispatchers.IO) { GrimoireDatabase.isReady(app) }
             _dbState.value = if (ready) DatabaseState.READY else DatabaseState.NEEDS_DOWNLOAD
@@ -105,6 +102,47 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun onThemeModeChange(mode: ThemeMode) =
+        viewModelScope.launch { SettingsStore.setThemeMode(app, mode) }
+
+    fun onDynamicColorChange(enabled: Boolean) =
+        viewModelScope.launch { SettingsStore.setDynamicColor(app, enabled) }
+
+    fun onReadingThemeChange(theme: ReadingTheme) =
+        viewModelScope.launch { SettingsStore.setReadingTheme(app, theme) }
+
+    fun onFontFamilyChange(family: FontFamily) =
+        viewModelScope.launch { SettingsStore.setFontFamily(app, family) }
+
+    fun onReadingSizeChange(size: ReadingSize) =
+        viewModelScope.launch { SettingsStore.setReadingSize(app, size) }
+
+    fun onLineSpacingChange(spacing: LineSpacing) =
+        viewModelScope.launch { SettingsStore.setLineSpacing(app, spacing) }
+
+    fun isBookmarked(source: String, slug: String): Boolean {
+        val key = "$source:$slug"
+        return _bookmarks.value.contains(key)
+    }
+
+    fun addBookmark(source: String, slug: String, title: String) {
+        val key = "$source:$slug"
+        viewModelScope.launch {
+            val updated = _bookmarks.value + key
+            _bookmarks.value = updated
+            SettingsStore.saveBookmarks(app, updated)
+        }
+    }
+
+    fun removeBookmark(source: String, slug: String) {
+        val key = "$source:$slug"
+        viewModelScope.launch {
+            val updated = _bookmarks.value - key
+            _bookmarks.value = updated
+            SettingsStore.saveBookmarks(app, updated)
+        }
+    }
+
     fun onQueryChange(query: String) {
         _query.value = query
     }
@@ -112,6 +150,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun onSourceChange(source: SourceKind) {
         _source.value = source
     }
+
+    private var downloadJob: Job? = null
 
     fun startDownload() {
         if (downloadJob?.isActive == true) return
