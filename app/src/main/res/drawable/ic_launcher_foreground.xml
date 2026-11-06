@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher foreground: Lucide "scroll-text" (a scroll with text lines),
+     scaled into the adaptive-icon safe zone. Glyph strokes are parchment. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <group
+        android:scaleX="0.66"
+        android:scaleY="0.66"
+        android:pivotX="12"
+        android:pivotY="12">
+        <path
+            android:strokeColor="#E7D9BE"
+            android:strokeWidth="2.0"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:fillColor="@android:color/transparent"
+            android:pathData="M15,12h-5" />
+        <path
+            android:strokeColor="#E7D9BE"
+            android:strokeWidth="2.0"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:fillColor="@android:color/transparent"
+            android:pathData="M15,8h-5" />
+        <path
+            android:strokeColor="#E7D9BE"
+            android:strokeWidth="2.0"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:fillColor="@android:color/transparent"
+            android:pathData="M19,17V5a2,2 0 0,0 -2,-2H4" />
+        <path
+            android:strokeColor="#E7D9BE"
+            android:strokeWidth="2.0"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:fillColor="@android:color/transparent"
+            android:pathData="M8,21h12a2,2 0 0,0 2,-2v-1a1,1 0 0,0 -1,-1H11a1,1 0 0,0 -1,1v1a2,2 0 1,1 -4,0V5a2,2 0 1,0 -4,0v2a1,1 0 0,0 1,1h3" />
+    </group>
+</vector>

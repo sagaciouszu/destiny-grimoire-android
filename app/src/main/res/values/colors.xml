@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Launcher: deep aubergine field, parchment glyph -->
+    <color name="ic_launcher_background">#251A2E</color>
+
+    <!-- App palette fallbacks (used when dynamic color is unavailable/disabled) -->
+    <color name="grimoire_gold">#D8B25A</color>
+    <color name="grimoire_parchment">#E7D9BE</color>
+    <color name="grimoire_aubergine">#251A2E</color>
+    <color name="grimoire_aubergine_light">#3A2B45</color>
+    <color name="grimoire_ink">#1B131F</color>
+</resources>

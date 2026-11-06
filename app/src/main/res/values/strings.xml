@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Grimoire</string>
+    <string name="search_hint">Search the grimoire…</string>
+    <string name="search_content_description">Search</string>
+    <string name="clear_search">Clear search</string>
+    <string name="download_title">Download the archive</string>
+    <string name="download_body">The Destiny grimoire database (~215 MB) is downloaded once on first launch, verified with its published SHA-256 checksum, and kept offline on your device.</string>
+    <string name="download_button">Download now</string>
+    <string name="download_error_title">Download failed</string>
+    <string name="download_retry">Retry</string>
+    <string name="result_count">%1$d results</string>
+    <string name="empty_results">No matches for "%1$s"</string>
+    <string name="open_license">Open-source licenses</string>
+    <string name="open_license_body">Grimoire database content is compiled from The Ishtar Collective, Destinypedia, and reviewed captions. Destiny is a trademark of Bungie Inc. This app is a fan-built project and is not affiliated with or endorsed by Bungie.</string>
+</resources>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Exclude the ~215 MB downloaded database from cloud backup/restore -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="grimoire.db" />
+        <exclude domain="file" path="grimoire.db.tmp" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="grimoire.db" />
+        <exclude domain="file" path="grimoire.db.tmp" />
+    </device-transfer>
+</data-extraction-rules>

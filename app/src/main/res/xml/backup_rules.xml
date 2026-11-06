@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Legacy backup rules (pre-Android 12): exclude the downloaded DB -->
+<full-backup-content>
+    <exclude domain="file" path="grimoire.db" />
+    <exclude domain="file" path="grimoire.db.tmp" />
+</full-backup-content>
