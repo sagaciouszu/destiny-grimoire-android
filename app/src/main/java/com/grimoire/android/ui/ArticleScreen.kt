@@ -87,7 +87,6 @@ fun ArticleScreen(
     LaunchedEffect(source, sourceSlug) {
         article = GrimoireArticleRepository.load(source, sourceSlug)
         isBookmarked = viewModel.isBookmarked(source, sourceSlug)
-        // Restore saved reading progress
         scrollPosition = viewModel.getReadingProgress(source, sourceSlug)
     }
 
@@ -97,7 +96,6 @@ fun ArticleScreen(
         }
     }
 
-    // Persist scroll position when it changes
     LaunchedEffect(scrollPosition) {
         if (article != null && article?.found == true) {
             viewModel.saveReadingProgress(source, sourceSlug, scrollPosition)
@@ -107,7 +105,6 @@ fun ArticleScreen(
     val fs = settings.fontScale
     val lh = settings.lineHeightFactor
 
-    // --- Typography, scaled by reading settings + font family ---
     val baseSize = 16.sp
     val titleExtra = 22.sp
     val largeSize = 17.sp
@@ -150,7 +147,6 @@ fun ArticleScreen(
         ),
     )
 
-    // Reading time estimate
     val wordCount = article?.blocks?.sumOf { it.text.length / 6 } ?: 0
     val readingTimeMinutes = (wordCount / 200).coerceAtLeast(1)
 
@@ -173,7 +169,7 @@ fun ArticleScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            painter = painterResource(R.drawable.lucide_ic_arrow_left),
+                            painter = painterResource(R.drawable.ic_arrow_back),
                             contentDescription = "Back",
                             modifier = Modifier.size(24.dp),
                         )
@@ -192,10 +188,7 @@ fun ArticleScreen(
                         },
                     ) {
                         Icon(
-                            painter = painterResource(
-                                if (isBookmarked) R.drawable.lucide_ic_bookmark_check
-                                else R.drawable.lucide_ic_bookmark,
-                            ),
+                            painter = painterResource(if (isBookmarked) R.drawable.ic_bookmark else R.drawable.ic_bookmark_border),
                             contentDescription = if (isBookmarked) "Remove bookmark" else "Bookmark article",
                             tint = if (isBookmarked) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -204,7 +197,7 @@ fun ArticleScreen(
                     }
                     IconButton(onClick = { showReadingSheet = true }) {
                         Icon(
-                            painter = painterResource(R.drawable.lucide_ic_type),
+                            painter = painterResource(R.drawable.ic_format_textsize),
                             contentDescription = "Reading settings",
                             modifier = Modifier.size(24.dp),
                         )
@@ -221,17 +214,14 @@ fun ArticleScreen(
                         },
                     ) {
                         Icon(
-                            painter = painterResource(
-                                if (isPlaying) R.drawable.lucide_ic_volume_x
-                                else R.drawable.lucide_ic_speaker,
-                            ),
+                            painter = painterResource(if (isPlaying) R.drawable.ic_volume_off else R.drawable.ic_volume_up),
                             contentDescription = if (isPlaying) "Stop reading aloud" else "Read aloud",
                             modifier = Modifier.size(24.dp),
                         )
                     }
                     IconButton(onClick = { article?.let { shareArticle(context, it) } }) {
                         Icon(
-                            painter = painterResource(R.drawable.lucide_ic_share_2),
+                            painter = painterResource(R.drawable.ic_share),
                             contentDescription = "Share article",
                             modifier = Modifier.size(24.dp),
                         )
@@ -324,7 +314,7 @@ private fun NotFoundState(
         verticalArrangement = Arrangement.Center,
     ) {
         Icon(
-            painter = painterResource(R.drawable.lucide_ic_file_text),
+            painter = painterResource(R.drawable.ic_description),
             contentDescription = "Article not found",
             tint = colors.onSurfaceVariant,
             modifier = Modifier.size(48.dp),
@@ -362,7 +352,6 @@ private fun ArticleBody(
 ) {
     val scrollState = rememberScrollState()
 
-    // Report scroll position as user reads
     LaunchedEffect(scrollState.value) {
         val maxScroll = scrollState.maxValue.toFloat()
         val position = if (maxScroll > 0) scrollState.value / maxScroll else 0f
@@ -377,7 +366,6 @@ private fun ArticleBody(
                 .verticalScroll(scrollState)
                 .padding(horizontal = 20.dp, vertical = 8.dp),
         ) {
-            // Kind badge
             Surface(
                 color = badgeBackground(article.kind),
                 shape = MaterialTheme.shapes.small,
@@ -406,14 +394,13 @@ private fun ArticleBody(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            // Reading time estimate
             Spacer(Modifier.height(4.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(top = 4.dp),
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.lucide_ic_clock),
+                    painter = painterResource(R.drawable.ic_access_time),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(16.dp),
@@ -430,7 +417,6 @@ private fun ArticleBody(
                 color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
             )
 
-            // Blocks are selectable so quotes can be copied straight out
             SelectionContainer {
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     for (block in article.blocks) {
@@ -540,7 +526,6 @@ fun ReadingSettingsSheet(
 
             Spacer(Modifier.height(16.dp))
 
-            // Reading theme
             Text(
                 text = "Reading theme",
                 style = MaterialTheme.typography.labelLarge,
@@ -562,7 +547,6 @@ fun ReadingSettingsSheet(
 
             Spacer(Modifier.height(16.dp))
 
-            // Font family
             Text(
                 text = "Font family",
                 style = MaterialTheme.typography.labelLarge,
@@ -580,7 +564,6 @@ fun ReadingSettingsSheet(
 
             Spacer(Modifier.height(16.dp))
 
-            // Font size
             Text(
                 text = "Font size",
                 style = MaterialTheme.typography.labelLarge,
@@ -603,7 +586,6 @@ fun ReadingSettingsSheet(
 
             Spacer(Modifier.height(16.dp))
 
-            // Line spacing
             Text(
                 text = "Line spacing",
                 style = MaterialTheme.typography.labelLarge,
@@ -650,7 +632,7 @@ private fun ReadingThemeRow(
         )
         if (selected) {
             Icon(
-                painter = painterResource(R.drawable.lucide_ic_check),
+                painter = painterResource(R.drawable.ic_check),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(24.dp),
@@ -694,7 +676,7 @@ private fun FontRow(
         )
         if (selected) {
             Icon(
-                painter = painterResource(R.drawable.lucide_ic_check),
+                painter = painterResource(R.drawable.ic_check),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(24.dp),
@@ -774,7 +756,6 @@ fun kindLabel(source: String): String = when (source) {
     else -> source
 }
 
-// Extension properties for UI display labels
 private val ReadingTheme.label: String
     get() = when (this) {
         ReadingTheme.DEFAULT -> "Default"

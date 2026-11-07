@@ -73,9 +73,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         SettingsStore.settingsFlow(app)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings())
 
-    /** Bookmarked article keys: "source:slug". */
-    private val _bookmarks = MutableStateFlow(setOf<String>())
-    val bookmarks: StateFlow<Set<String>> = _bookmarks.asStateFlow()
+    /** Bookmarked articles: "source:slug" → title. */
+    private val _bookmarks = MutableStateFlow(mapOf<String, String>())
+    val bookmarks: StateFlow<Map<String, String>> = _bookmarks.asStateFlow()
 
     /** Reading progress: "source:slug" -> scroll position (0.0-1.0). */
     private val _readingProgress = MutableStateFlow(mapOf<String, Float>())
@@ -140,13 +140,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun isBookmarked(source: String, slug: String): Boolean {
         val key = "$source:$slug"
-        return _bookmarks.value.contains(key)
+        return _bookmarks.value.containsKey(key)
     }
 
     fun addBookmark(source: String, slug: String, title: String) {
         val key = "$source:$slug"
         viewModelScope.launch {
-            val updated = _bookmarks.value + key
+            val updated = _bookmarks.value + (key to title)
             _bookmarks.value = updated
             SettingsStore.saveBookmarks(app, updated)
         }

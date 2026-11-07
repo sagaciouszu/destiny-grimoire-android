@@ -20,7 +20,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
-import androidx.compose.foundation.layout.size
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -28,10 +28,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -41,8 +43,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -64,12 +66,12 @@ fun SearchScreen(
     val recentSearches by viewModel.recentSearches.collectAsState()
 
     Column(Modifier.fillMaxSize()) {
-        // Header bar with the scroll-text glyph + app name
+        // Header bar with the app name
         TopAppBar(
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        painter = painterResource(R.drawable.lucide_ic_scroll_text),
+                        painter = painterResource(R.drawable.ic_book),
                         contentDescription = "Grimoire",
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(24.dp),
@@ -85,7 +87,7 @@ fun SearchScreen(
             actions = {
                 IconButton(onClick = onOpenSettings) {
                     Icon(
-                        painter = painterResource(R.drawable.lucide_ic_settings),
+                        painter = painterResource(R.drawable.ic_settings),
                         contentDescription = "Settings",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(24.dp),
@@ -107,7 +109,7 @@ fun SearchScreen(
             placeholder = { Text("Search the grimoire…") },
             leadingIcon = {
                 Icon(
-                    painter = painterResource(R.drawable.lucide_ic_search),
+                    imageVector = Icons.Filled.Search,
                     contentDescription = "Search",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(24.dp),
@@ -119,7 +121,7 @@ fun SearchScreen(
                         onClick = { viewModel.onQueryChange("") },
                     ) {
                         Icon(
-                            painter = painterResource(R.drawable.lucide_ic_x),
+                            painter = painterResource(R.drawable.ic_close),
                             contentDescription = "Clear search",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(24.dp),
@@ -185,7 +187,6 @@ private fun LazyRowSourceFilter(
                         modifier = Modifier.size(FilterChipDefaults.IconSize),
                     )
                 },
-                // FilterChip already provides ≥48dp touch target and ripple
             )
         }
     }
@@ -245,7 +246,7 @@ private fun ResultCard(result: SearchResult, onOpenArticle: () -> Unit) {
                     onClick = { copyToClipboard(context, rawSnippet.replace("[", "").replace("]", "")) },
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.lucide_ic_copy),
+                        painter = painterResource(R.drawable.ic_content_copy),
                         contentDescription = "Copy snippet",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(24.dp),
@@ -308,7 +309,7 @@ private fun PromptIdleState(
         verticalArrangement = Arrangement.Center,
     ) {
         Icon(
-            painter = painterResource(R.drawable.lucide_ic_book_open_text),
+            painter = painterResource(R.drawable.ic_book_open),
             contentDescription = "Grimoire archive",
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
             modifier = Modifier.size(96.dp),
@@ -348,7 +349,7 @@ private fun PromptIdleState(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(
-                                painter = painterResource(R.drawable.lucide_ic_history),
+                                painter = painterResource(R.drawable.ic_history),
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp),
@@ -375,7 +376,7 @@ private fun EmptyResultsState(query: String) {
         verticalArrangement = Arrangement.Center,
     ) {
         Icon(
-            painter = painterResource(R.drawable.lucide_ic_search),
+            imageVector = Icons.Filled.Search,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
             modifier = Modifier.size(80.dp),
@@ -395,14 +396,14 @@ private fun EmptyResultsState(query: String) {
 }
 
 private fun iconForSource(kind: SourceKind): Int = when (kind) {
-    SourceKind.ALL -> R.drawable.lucide_ic_layout_grid
-    SourceKind.TRANSCRIPT -> R.drawable.lucide_ic_scroll_text
-    SourceKind.ITEM -> R.drawable.lucide_ic_sword
-    SourceKind.LORE -> R.drawable.lucide_ic_book_text
-    SourceKind.GRIMOIRE_CARD -> R.drawable.lucide_ic_sparkles
-    SourceKind.BOOK -> R.drawable.lucide_ic_book_open
-    SourceKind.INTERACTION -> R.drawable.lucide_ic_message_circle
-    SourceKind.RECORD -> R.drawable.lucide_ic_trophy
+    SourceKind.ALL -> R.drawable.ic_dashboard
+    SourceKind.TRANSCRIPT -> R.drawable.ic_book
+    SourceKind.ITEM -> R.drawable.ic_sports_mma
+    SourceKind.LORE -> R.drawable.ic_email
+    SourceKind.GRIMOIRE_CARD -> R.drawable.ic_auto_awesome
+    SourceKind.BOOK -> R.drawable.ic_book_open
+    SourceKind.INTERACTION -> R.drawable.ic_chat
+    SourceKind.RECORD -> R.drawable.ic_description
 }
 
 private fun kindOf(source: String): String = when (source) {

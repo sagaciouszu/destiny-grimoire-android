@@ -16,6 +16,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -46,7 +53,7 @@ fun DownloadScreen(viewModel: AppViewModel) {
         verticalArrangement = Arrangement.Center,
     ) {
         Icon(
-            painter = painterResource(R.drawable.lucide_ic_scroll_text),
+            imageVector = Icons.Filled.Book,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(bottom = 8.dp),
@@ -109,9 +116,10 @@ fun DownloadScreen(viewModel: AppViewModel) {
                     )
                     is GrimoireDatabase.DlState.Failed -> {
                         Icon(
-                            painter = painterResource(R.drawable.lucide_ic_circle_alert),
+                            imageVector = Icons.Filled.Error,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(24.dp),
                         )
                         Spacer(Modifier.height(12.dp))
                         Text(
@@ -132,7 +140,7 @@ fun DownloadScreen(viewModel: AppViewModel) {
 
                 when {
                     isFailed -> Button(onClick = { viewModel.startDownload() }) {
-                        Icon(painter = painterResource(R.drawable.lucide_ic_refresh_cw), contentDescription = null)
+                        Icon(imageVector = Icons.Filled.Refresh, contentDescription = null)
                         Spacer(Modifier.padding(4.dp))
                         Text("Retry download")
                     }
@@ -144,7 +152,7 @@ fun DownloadScreen(viewModel: AppViewModel) {
                         // In progress — nothing to tap
                     }
                     else -> Button(onClick = { viewModel.startDownload() }) {
-                        Icon(painter = painterResource(R.drawable.lucide_ic_download), contentDescription = null)
+                        Icon(imageVector = Icons.Filled.Download, contentDescription = null)
                         Spacer(Modifier.padding(4.dp))
                         Text("Download now (~56 MB)")
                     }
@@ -167,10 +175,10 @@ fun DownloadScreen(viewModel: AppViewModel) {
 @Composable
 private fun IdleStatus() {
     Icon(
-        painter = painterResource(R.drawable.lucide_ic_download),
+        imageVector = Icons.Filled.Download,
         contentDescription = null,
         tint = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.height(48.dp),
+        modifier = Modifier.size(48.dp),
     )
     Spacer(Modifier.height(12.dp))
     Text(
@@ -195,9 +203,10 @@ private fun DownloadStatus(title: String, progress: Float?, detail: String? = nu
         LinearProgressIndicator(progress = { p })
     } else {
         Icon(
-            painter = painterResource(R.drawable.lucide_ic_check),
+            imageVector = Icons.Filled.Check,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(24.dp),
         )
     }
     Spacer(Modifier.height(12.dp))

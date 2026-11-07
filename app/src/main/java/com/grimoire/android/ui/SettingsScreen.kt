@@ -28,6 +28,21 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Brightness2
+import androidx.compose.material.icons.filled.BrightnessAuto
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.FormatSize
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,7 +52,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -54,6 +68,7 @@ import com.grimoire.android.data.ThemeMode
 fun SettingsScreen(
     viewModel: AppViewModel,
     onBack: () -> Unit,
+    onOpenBookmarks: () -> Unit,
 ) {
     val context = LocalContext.current
     val settings by viewModel.settings.collectAsState()
@@ -70,8 +85,9 @@ fun SettingsScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            painter = painterResource(R.drawable.lucide_ic_arrow_left),
+                            imageVector = Icons.Filled.ArrowBack,
                             contentDescription = "Back",
+                            modifier = Modifier.size(24.dp),
                         )
                     }
                 },
@@ -86,11 +102,11 @@ fun SettingsScreen(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 24.dp),
         ) {
             // ---------- Appearance ----------
-            item { SectionHeader("Appearance", R.drawable.lucide_ic_palette) }
+            item { SectionHeader("Appearance", Icons.Filled.Palette) }
             item {
                 ThemeRadioRow(
                     label = "System default",
-                    icon = R.drawable.lucide_ic_sun_moon,
+                    icon = Icons.Filled.BrightnessAuto,
                     selected = settings.themeMode == ThemeMode.SYSTEM,
                     onSelect = { viewModel.onThemeModeChange(ThemeMode.SYSTEM) },
                 )
@@ -98,7 +114,7 @@ fun SettingsScreen(
             item {
                 ThemeRadioRow(
                     label = "Light",
-                    icon = R.drawable.lucide_ic_sun,
+                    icon = Icons.Filled.WbSunny,
                     selected = settings.themeMode == ThemeMode.LIGHT,
                     onSelect = { viewModel.onThemeModeChange(ThemeMode.LIGHT) },
                 )
@@ -106,14 +122,14 @@ fun SettingsScreen(
             item {
                 ThemeRadioRow(
                     label = "Dark",
-                    icon = R.drawable.lucide_ic_moon,
+                    icon = Icons.Filled.Brightness2,
                     selected = settings.themeMode == ThemeMode.DARK,
                     onSelect = { viewModel.onThemeModeChange(ThemeMode.DARK) },
                 )
             }
             item {
                 SwitchRow(
-                    icon = R.drawable.lucide_ic_palette,
+                    icon = Icons.Filled.Palette,
                     title = "Dynamic color",
                     subtitle = "Match the app to your wallpaper (Material You, Android 12+)",
                     checked = settings.dynamicColor,
@@ -122,11 +138,11 @@ fun SettingsScreen(
             }
 
             // ---------- Reading ----------
-            item { SectionHeader("Reading", R.drawable.lucide_ic_type) }
+            item { SectionHeader("Reading", Icons.Filled.FormatSize) }
             item {
                 ReadingThemeRow(
                     label = "Default",
-                    icon = R.drawable.lucide_ic_file_text,
+                    icon = Icons.Filled.Description,
                     selected = settings.readingTheme == ReadingTheme.DEFAULT,
                     onSelect = { viewModel.onReadingThemeChange(ReadingTheme.DEFAULT) },
                 )
@@ -134,7 +150,7 @@ fun SettingsScreen(
             item {
                 ReadingThemeRow(
                     label = "Sepia",
-                    icon = R.drawable.lucide_ic_file_text,
+                    icon = Icons.Filled.Description,
                     selected = settings.readingTheme == ReadingTheme.SEPIA,
                     onSelect = { viewModel.onReadingThemeChange(ReadingTheme.SEPIA) },
                     previewColor = androidx.compose.ui.graphics.Color(0xFFF5F0E6),
@@ -143,7 +159,7 @@ fun SettingsScreen(
             item {
                 ReadingThemeRow(
                     label = "Amber",
-                    icon = R.drawable.lucide_ic_file_text,
+                    icon = Icons.Filled.Description,
                     selected = settings.readingTheme == ReadingTheme.AMBER,
                     onSelect = { viewModel.onReadingThemeChange(ReadingTheme.AMBER) },
                     previewColor = androidx.compose.ui.graphics.Color(0xFF1A140A),
@@ -203,29 +219,30 @@ fun SettingsScreen(
             }
 
             // ---------- Bookmarks ----------
-            item { SectionHeader("Bookmarks", R.drawable.lucide_ic_bookmark) }
+            item { SectionHeader("Bookmarks", Icons.Filled.Bookmark) }
             item {
                 SettingRow(
-                    icon = R.drawable.lucide_ic_bookmark,
+                    icon = Icons.Filled.Bookmark,
                     title = "Your bookmarks",
                     subtitle = "${bookmarks.size} saved article${if (bookmarks.size != 1) "s" else ""}",
-                    onClick = null,
+                    onClick = { onOpenBookmarks() },
                     titleColor = MaterialTheme.colorScheme.onSurface,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 ) {
-                    Text(
-                        text = if (bookmarks.isEmpty()) "None yet" else "Tap to view",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    Icon(
+                        imageVector = Icons.Filled.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             }
 
             // ---------- Data ----------
-            item { SectionHeader("Archive", R.drawable.lucide_ic_database) }
+            item { SectionHeader("Archive", Icons.Filled.Storage) }
             item {
                 SettingRow(
-                    icon = R.drawable.lucide_ic_file_text,
+                    icon = Icons.Filled.Description,
                     title = "Archive size",
                     subtitle = "One-time offline download, kept on this device",
                     onClick = null,
@@ -241,7 +258,7 @@ fun SettingsScreen(
             }
             item {
                 SettingRow(
-                    icon = R.drawable.lucide_ic_refresh_cw,
+                    icon = Icons.Filled.Refresh,
                     title = "Download latest archive",
                     subtitle = "Fetches the newest database from the publisher's release",
                     onClick = {
@@ -252,15 +269,16 @@ fun SettingsScreen(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.lucide_ic_chevron_right),
+                        imageVector = Icons.Filled.ChevronRight,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             }
             item {
                 SettingRow(
-                    icon = R.drawable.lucide_ic_trash_2,
+                    icon = Icons.Filled.Delete,
                     title = "Delete offline copy",
                     subtitle = "Removes the archive; you can re-download it anytime",
                     titleColor = MaterialTheme.colorScheme.error,
@@ -268,18 +286,19 @@ fun SettingsScreen(
                     onClick = { showDeleteDialog = true },
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.lucide_ic_chevron_right),
+                        imageVector = Icons.Filled.ChevronRight,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             }
 
             // ---------- About ----------
-            item { SectionHeader("About", R.drawable.lucide_ic_info) }
+            item { SectionHeader("About", Icons.Filled.Info) }
             item {
                 SettingRow(
-                    icon = R.drawable.lucide_ic_info,
+                    icon = Icons.Filled.Info,
                     title = "Version",
                     subtitle = null,
                     onClick = null,
@@ -287,7 +306,7 @@ fun SettingsScreen(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 ) {
                     Text(
-                        text = "0.2.0 (3)",
+                        text = "0.2.0 (4)",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -295,7 +314,7 @@ fun SettingsScreen(
             }
             item {
                 SettingRow(
-                    icon = R.drawable.lucide_ic_shield_check,
+                    icon = Icons.Filled.Shield,
                     title = "Open-source licenses",
                     subtitle = "SQLite, Compose, Lucide and more",
                     onClick = { showLicensesDialog = true },
@@ -303,9 +322,10 @@ fun SettingsScreen(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.lucide_ic_chevron_right),
+                        imageVector = Icons.Filled.ChevronRight,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             }
@@ -326,7 +346,7 @@ fun SettingsScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            icon = { Icon(painterResource(R.drawable.lucide_ic_trash_2), contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            icon = { Icon(imageVector = Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
             title = { Text("Delete offline copy?") },
             text = { Text("This removes the downloaded archive (about 215 MB) from this device. You can download it again from Settings → Archive.") },
             confirmButton = {
@@ -345,15 +365,14 @@ fun SettingsScreen(
     if (showLicensesDialog) {
         AlertDialog(
             onDismissRequest = { showLicensesDialog = false },
-            icon = { Icon(painterResource(R.drawable.lucide_ic_shield_check), contentDescription = null) },
+            icon = { Icon(imageVector = Icons.Filled.Shield, contentDescription = null) },
             title = { Text("Open-source licenses") },
             text = {
                 Text(
                     "• SQLite 3.54.1 — public domain\n" +
                         "• SQLite FTS5 — public domain\n" +
                         "• AndroidX / Jetpack Compose / Material 3 — Apache License 2.0\n" +
-                        "• Lucide icons — ISC\n" +
-                        "• composablehorizons/lucide-icons-android — MIT\n" +
+                        "• Material Icons — Apache 2.0\n" +
                         "• Kotlin — Apache License 2.0",
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -364,13 +383,13 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun SectionHeader(title: String, icon: Int) {
+private fun SectionHeader(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
     Row(
         modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            painter = painterResource(icon),
+            imageVector = icon,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(16.dp),
@@ -386,7 +405,7 @@ private fun SectionHeader(title: String, icon: Int) {
 }
 
 @Composable
-private fun ThemeRadioRow(label: String, icon: Int, selected: Boolean, onSelect: () -> Unit) {
+private fun ThemeRadioRow(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, selected: Boolean, onSelect: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -395,7 +414,7 @@ private fun ThemeRadioRow(label: String, icon: Int, selected: Boolean, onSelect:
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            painter = painterResource(icon),
+            imageVector = icon,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(24.dp),
@@ -409,7 +428,7 @@ private fun ThemeRadioRow(label: String, icon: Int, selected: Boolean, onSelect:
 @Composable
 private fun ReadingThemeRow(
     label: String,
-    icon: Int,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     selected: Boolean,
     onSelect: () -> Unit,
     previewColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surface,
@@ -482,7 +501,7 @@ private fun RadioRow(
 
 @Composable
 private fun SwitchRow(
-    icon: Int,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String,
     checked: Boolean,
@@ -496,7 +515,7 @@ private fun SwitchRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            painter = painterResource(icon),
+            imageVector = icon,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(24.dp),
@@ -512,7 +531,7 @@ private fun SwitchRow(
 
 @Composable
 private fun SettingRow(
-    icon: Int,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String?,
     onClick: (() -> Unit)?,
@@ -528,7 +547,7 @@ private fun SettingRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            painter = painterResource(icon),
+            imageVector = icon,
             contentDescription = null,
             tint = tint,
             modifier = Modifier.size(24.dp),

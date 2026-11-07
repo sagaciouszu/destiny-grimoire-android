@@ -28,6 +28,7 @@ import androidx.navigation.compose.rememberNavController
 import com.grimoire.android.data.ThemeMode
 import com.grimoire.android.ui.AppViewModel
 import com.grimoire.android.ui.ArticleScreen
+import com.grimoire.android.ui.BookmarksScreen
 import com.grimoire.android.ui.DatabaseState
 import com.grimoire.android.ui.DownloadScreen
 import com.grimoire.android.ui.SearchScreen
@@ -86,6 +87,16 @@ private fun GrimoireApp(viewModel: AppViewModel) {
                     SettingsScreen(
                         viewModel = viewModel,
                         onBack = { navController.popBackStack() },
+                        onOpenBookmarks = { navController.navigate("bookmarks") },
+                    )
+                }
+                composable("bookmarks") {
+                    BookmarksScreen(
+                        viewModel = viewModel,
+                        onBack = { navController.popBackStack() },
+                        onOpenArticle = { source, slug ->
+                            navController.navigate("article/${Uri.encode(source)}/${Uri.encode(slug)}")
+                        },
                     )
                 }
             }

@@ -57,7 +57,6 @@ object SettingsStore {
     private val KEY_BOOKMARKS = stringPreferencesKey("bookmarks")
     private val KEY_READING_PROGRESS = stringPreferencesKey("reading_progress")
     private val KEY_RECENT_SEARCHES = stringPreferencesKey("recent_searches")
-
     fun settingsFlow(context: Context): Flow<AppSettings> =
         context.dataStore.data
             .catch { e ->
@@ -98,25 +97,27 @@ object SettingsStore {
     suspend fun setLineSpacing(context: Context, spacing: LineSpacing) =
         context.dataStore.edit { it[KEY_SPACING] = spacing.name }
 
-    suspend fun loadBookmarks(context: Context): Set<String> {
+    suspend fun loadBookmarks(context: Context): Map<String, String> {
         return runCatching {
             val prefs = context.dataStore.data.first()
-            val json = prefs[KEY_BOOKMARKS] ?: "[]"
-            val arr = JSONArray(json)
-            val set = mutableSetOf<String>()
-            for (i in 0 until arr.length()) {
-                set.add(arr.getString(i))
+            val json = prefs[KEY_BOOKMARKS] ?: "{}"
+            val obj = JSONObject(json)
+            val map = mutableMapOf<String, String>()
+            val keys = obj.keys()
+            while (keys.hasNext()) {
+                val k = keys.next()
+                map[k] = obj.optString(k, "")
             }
-            set.toSet()
-        }.getOrDefault(emptySet())
+            map.toMap()
+        }.getOrDefault(emptyMap())
     }
 
-    suspend fun saveBookmarks(context: Context, bookmarks: Set<String>) {
-        val arr = JSONArray()
-        for (key in bookmarks) {
-            arr.put(key)
+    suspend fun saveBookmarks(context: Context, bookmarks: Map<String, String>) {
+        val obj = JSONObject()
+        for ((key, title) in bookmarks) {
+            obj.put(key, title)
         }
-        context.dataStore.edit { it[KEY_BOOKMARKS] = arr.toString() }
+        context.dataStore.edit { it[KEY_BOOKMARKS] = obj.toString() }
     }
 
     // ---------- Reading progress ----------
