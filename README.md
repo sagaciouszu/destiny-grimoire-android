@@ -1,5 +1,15 @@
 # Grimoire (Android)
 
+<p align="center">
+  <img src='https://img.shields.io/github/v/release/sagaciouszu/destiny-grimoire-android?label=version&color=blue' alt='Version'/>
+  <a href='https://github.com/sagaciouszu/destiny-grimoire-android/actions/workflows/ci.yml'><img src='https://github.com/sagaciouszu/destiny-grimoire-android/actions/workflows/ci.yml/badge.svg' alt='CI'/></a>
+  <a href='https://github.com/sagaciouszu/destiny-grimoire-android/actions/workflows/codeql-analysis.yml'><img src='https://github.com/sagaciouszu/destiny-grimoire-android/actions/workflows/codeql-analysis.yml/badge.svg' alt='CodeQL'/></a>
+  <img src='https://img.shields.io/badge/license-MIT-green' alt='License'/>
+  <img src='https://img.shields.io/badge/Kotlin-2.0-blue' alt='Kotlin'/>
+  <img src='https://img.shields.io/badge/architecture-ARM64%20%2F%20x86_64-lightgrey' alt='ARM64 / x86_64'/>
+</p>
+
+
 Offline-first, native-accelerated search over the Destiny grimoire archive.
 
 - **UI**: Jetpack Compose, Material 3 (Material You — dynamic color on Android 12+)
